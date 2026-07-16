@@ -1,0 +1,41 @@
+# --- Java / Maven / Spring Boot ---
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/
+!**/src/main/**
+!**/src/test/**
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# --- Environment / secrets ---
+.env
+.env.*
+*.pem
+*.key
+application-local.yml
+secrets/
+
+# --- Data (never commit patient data, even synthetic, without review) ---
+data/images/
+data/raw/
+*.dcm
+
+# --- Flutter / mobile (populated when mobile/ is scaffolded) ---
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/ios/Pods/
+mobile/android/.gradle/
+
+# --- OS ---
+.DS_Store
+Thumbs.db

@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: verirad-backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/verirad
+    username: ${DB_USERNAME:verirad}
+    password: ${DB_PASSWORD:changeme}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate   # use Flyway/Liquibase migrations, not auto-DDL, once schema stabilizes
+    show-sql: false
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8080}
+
+  ai:
+    openai:
+      api-key: ${LLM_API_KEY:}
+      chat:
+        options:
+          model: gpt-4o   # swap for whichever model each agent needs; per-agent overrides TODO
+
+server:
+  port: 8080
+
+# CT image vault - keys should come from a secrets manager (Vault, AWS KMS, etc.)
+# in any environment beyond local dev. Never commit real keys.
+verirad:
+  imaging:
+    storage-path: ${IMAGE_STORAGE_PATH:./data/images}
+    encryption-key-ref: ${IMAGE_ENCRYPTION_KEY_REF:local-dev-only}
+  edge-ai:
+    triage-model-version: v0.1
