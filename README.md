@@ -1,4 +1,4 @@
-# VeriRad
+# Lucidia
 
 Multi-agent AI system for CT scan report generation, with a dual-agent
 consensus/arbitration layer, an explainability agent producing saliency
