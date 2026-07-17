@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: lucidia-backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5433/lucidia?timezone=Asia/Kolkata
+    username: lucidia
+    password: lucidia_dev_password
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
+
+lucidia:
+  jwt:
+    secret: ${JWT_SECRET:this-is-a-dev-only-secret-change-before-any-real-deployment-32chars}
+    expiration-minutes: 60
+  imaging:
+    storage-path: ${IMAGE_STORAGE_PATH:./data/images}
+    encryption-key-ref: ${IMAGE_ENCRYPTION_KEY_REF:local-dev-only}
+  edge-ai:
+    triage-model-version: v0.1

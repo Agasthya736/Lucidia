@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:16
+    container_name: lucidia-postgres
+    environment:
+      POSTGRES_DB: lucidia
+      POSTGRES_USER: lucidia
+      POSTGRES_PASSWORD: lucidia_dev_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - lucidia_pgdata:/var/lib/postgresql/data
+
+volumes:
+  lucidia_pgdata:

@@ -5,7 +5,9 @@ import 'package:http/http.dart' as http;
 /// Base URL points at your local Spring Boot instance for now -
 /// swap for a real host once you deploy.
 class ApiClient {
-  static const String baseUrl = 'http://10.0.2.2:8080'; // 10.0.2.2 = Android emulator's localhost
+  // localhost works for Chrome/Windows targets, since backend runs on the same machine.
+// Android emulator needs 10.0.2.2 instead - swap when testing on that target.
+  static const String baseUrl = 'http://localhost:8080'; // 10.0.2.2 = Android emulator's localhost
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await http.post(

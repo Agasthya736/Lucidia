@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'auth_service.dart';
 import 'register_screen.dart';
-import '../shared/lucidia_marked.dart';
+import '../shared/lucidia_mark.dart';
 import '../shared/theme.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -144,3 +144,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+}
