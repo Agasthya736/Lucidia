@@ -15,6 +15,14 @@ spring:
   flyway:
     enabled: true
 
+  ai:
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY:}
+        chat:
+          options:
+            model: gemini-2.5-flash
+
 server:
   port: 8080
 
@@ -27,3 +35,6 @@ lucidia:
     encryption-key-ref: ${IMAGE_ENCRYPTION_KEY_REF:local-dev-only}
   edge-ai:
     triage-model-version: v0.1
+  ollama:
+    base-url: http://localhost:11434
+    vision-model: qwen2.5vl:7b
