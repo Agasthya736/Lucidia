@@ -44,7 +44,6 @@ class _VisionTestScreenState extends State<VisionTestScreen> {
         Uri.parse('http://localhost:8080/api/test/vision'),
       );
 
-      // ✅ Detect MIME type dynamically
       String extension = file.extension?.toLowerCase() ?? 'jpg';
 
       String mimeSubtype;
@@ -66,7 +65,7 @@ class _VisionTestScreenState extends State<VisionTestScreen> {
           'image',
           file.bytes!,
           filename: file.name,
-          contentType: MediaType('image', mimeSubtype), // ✅ FIX
+          contentType: MediaType('image', mimeSubtype),
         ),
       );
 
@@ -124,6 +123,10 @@ class _VisionTestScreenState extends State<VisionTestScreen> {
                 _agentCard('Vision B (Ollama)', _result!['visionB']),
                 const SizedBox(height: 16),
                 _arbitrationCard(_result!['arbitration']),
+                const SizedBox(height: 16),
+                _reportCard(_result!['report']),
+                const SizedBox(height: 16),
+                _verificationCard(_result!['verification']),
               ],
             ],
           ),
@@ -207,6 +210,99 @@ class _VisionTestScreenState extends State<VisionTestScreen> {
             style: const TextStyle(
                 color: LucidiaColors.textSecondary, fontSize: 12),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportCard(Map<String, dynamic>? data) {
+    if (data == null) return const SizedBox();
+
+    final bool flagged = data['flaggedForReview'] == true;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: LucidiaColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Draft Report',
+              style: TextStyle(
+                  fontWeight: FontWeight.w700, color: LucidiaColors.teal)),
+          const SizedBox(height: 8),
+          const Text('Findings',
+              style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: LucidiaColors.textPrimary)),
+          Text(
+            data['findings'] ?? '',
+            style: const TextStyle(color: LucidiaColors.textPrimary),
+          ),
+          const SizedBox(height: 8),
+          const Text('Impression',
+              style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: LucidiaColors.textPrimary)),
+          Text(
+            data['impression'] ?? '',
+            style: const TextStyle(color: LucidiaColors.textPrimary),
+          ),
+          if (flagged) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Flagged for clinician review',
+              style: TextStyle(
+                  color: LucidiaColors.violet, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _verificationCard(Map<String, dynamic>? data) {
+    if (data == null) return const SizedBox();
+
+    final bool verified = data['verified'] == true;
+    final flags = List<String>.from(data['flags'] ?? []);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: LucidiaColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: verified ? LucidiaColors.teal : LucidiaColors.error,
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            verified ? 'Report verified' : 'Unverified claims found',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: verified ? LucidiaColors.teal : LucidiaColors.error,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            data['notes'] ?? '',
+            style: const TextStyle(
+                color: LucidiaColors.textSecondary, fontSize: 12),
+          ),
+          ...flags.map((f) => Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '- $f',
+                  style: const TextStyle(
+                      color: LucidiaColors.error, fontSize: 12),
+                ),
+              )),
         ],
       ),
     );
