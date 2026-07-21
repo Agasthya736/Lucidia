@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -21,7 +22,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-    .requestMatchers("/api/auth/**", "/api/test/**", "/error").permitAll()
+    .requestMatchers("/api/auth/**").permitAll()
     .requestMatchers("/api/admin/**").hasRole("ADMIN")
     .anyRequest().authenticated()
 )
@@ -30,8 +31,13 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @Bean
-    public JwtDecoder jwtDecoder(JwtService jwtService) {
-        return NimbusJwtDecoder.withSecretKey(jwtService.getKey()).build();
-    }
+
+
+@Bean
+public JwtDecoder jwtDecoder(JwtService jwtService) {
+    return NimbusJwtDecoder
+            .withSecretKey(jwtService.getKey())
+            .macAlgorithm(MacAlgorithm.HS512)
+            .build();
+}
 }
