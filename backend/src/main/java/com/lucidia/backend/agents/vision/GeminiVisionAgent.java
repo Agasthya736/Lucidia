@@ -1,13 +1,14 @@
 package com.lucidia.backend.agents.vision;
 
+import java.util.List;
+
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.content.Media;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.content.Media;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeTypeUtils;
-
-import java.util.List;
 
 @Service
 public class GeminiVisionAgent implements VisionAgent {
@@ -18,35 +19,47 @@ public class GeminiVisionAgent implements VisionAgent {
         clinician to review. Respond in this exact format:
 
         SUMMARY: <one paragraph overall impression>
-        OBSERVATIONS: <bullet list of discrete notable features, one per line, prefixed with "-">
-        REGION: <rough anatomical location of the primary finding>
-        CONFIDENCE: <a number from 0.0 to 1.0 representing your certainty>
+        OBSERVATIONS: <bullet list of discrete notable features>
+        REGION: <rough anatomical location>
+        CONFIDENCE: <0.0 to 1.0>
         """;
 
     private final ChatClient chatClient;
 
     public GeminiVisionAgent(ChatClient.Builder chatClientBuilder) {
-        this.chatClient = chatClientBuilder.build();
+        this.chatClient = chatClientBuilder.build(); // ✅ KEEP SIMPLE
     }
 
     @Override
     public VisionFindings analyze(byte[] imageBytes, String mimeType) {
-        Media imageMedia = new Media(
-                MimeTypeUtils.parseMimeType(mimeType),
-                new org.springframework.core.io.ByteArrayResource(imageBytes)
-        );
 
-        UserMessage userMessage = UserMessage.builder()
-                .text("Analyze this CT scan.")
-                .media(List.of(imageMedia))
-                .build();
+        try {
+            Media imageMedia = new Media(
+                    MimeTypeUtils.parseMimeType(mimeType),
+                    new ByteArrayResource(imageBytes)
+            );
 
-        String response = chatClient.prompt(new Prompt(List.of(userMessage)))
-                .system(SYSTEM_PROMPT)
-                .call()
-                .content();
+            UserMessage userMessage = UserMessage.builder()
+                    .text("Analyze this CT scan image.")
+                    .media(List.of(imageMedia))
+                    .build();
 
-        return VisionFindingsParser.parse(response, providerName());
+            String response = chatClient
+                    .prompt(new Prompt(List.of(userMessage)))
+                    .system(SYSTEM_PROMPT)
+                    .call()
+                    .content();
+
+            if (response == null || response.isBlank()) {
+                throw new RuntimeException("Empty response from Gemini");
+            }
+
+            return VisionFindingsParser.parse(response, providerName());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Gemini Vision failed: " + e.getMessage(), e);
+        }
     }
 
     @Override

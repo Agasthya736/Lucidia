@@ -23,7 +23,7 @@ class VisionFindingsParser {
         try {
             confidence = Double.parseDouble(confidenceStr.trim());
         } catch (Exception e) {
-            confidence = 0.5; // fallback if the model didn't follow the format exactly
+            confidence = 0.5;
         }
 
         return new VisionFindings(provider, summary.trim(), observations, region.trim(), confidence);

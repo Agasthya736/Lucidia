@@ -21,10 +21,10 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**","/api/test/**").permitAll()
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .anyRequest().authenticated()
-            )
+    .requestMatchers("/api/auth/**", "/api/test/**", "/error").permitAll()
+    .requestMatchers("/api/admin/**").hasRole("ADMIN")
+    .anyRequest().authenticated()
+)
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}));
 
         return http.build();

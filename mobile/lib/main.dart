@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'auth/login_screen.dart';
+import 'pipeline/vision_test_screen.dart';
 import 'shared/theme.dart';
 
 void main() {
@@ -14,7 +14,7 @@ class LucidiaApp extends StatelessWidget {
     return MaterialApp(
       title: 'Lucidia',
       theme: buildLucidiaTheme(),
-      home: const LoginScreen(),
+      home: const VisionTestScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
