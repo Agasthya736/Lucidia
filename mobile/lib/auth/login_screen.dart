@@ -3,6 +3,7 @@ import 'auth_service.dart';
 import 'register_screen.dart';
 import '../shared/lucidia_mark.dart';
 import '../shared/theme.dart';
+import '../scan/home_screen.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -33,10 +34,10 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
       if (!mounted) return;
-      // TODO: navigate to home/report list screen once it exists
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login successful')),
-      );
+        Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+    );
     } catch (e) {
       setState(() => _errorMessage = e.toString());
     } finally {

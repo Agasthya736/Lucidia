@@ -2,6 +2,7 @@ package com.lucidia.backend.orchestrator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 import org.springframework.stereotype.Service;
@@ -43,10 +44,17 @@ public class PipelineOrchestrator {
     public PipelineResult run(byte[] imageBytes, String mimeType) {
         List<String> warnings = new ArrayList<>();
 
-        AgentOutcome<VisionFindings> outcomeA = safeCall(
-                () -> geminiVisionAgent.analyze(imageBytes, mimeType), "Gemini vision agent");
-        AgentOutcome<VisionFindings> outcomeB = safeCall(
-                () -> ollamaVisionAgent.analyze(imageBytes, mimeType), "Ollama vision agent");
+        // Run both vision agents concurrently instead of sequentially -
+        // they're independent reads of the same image, no reason to wait.
+        CompletableFuture<AgentOutcome<VisionFindings>> futureA = CompletableFuture.supplyAsync(
+                () -> safeCall(() -> geminiVisionAgent.analyze(imageBytes, mimeType), "Gemini vision agent"));
+        CompletableFuture<AgentOutcome<VisionFindings>> futureB = CompletableFuture.supplyAsync(
+                () -> safeCall(() -> ollamaVisionAgent.analyze(imageBytes, mimeType), "Ollama vision agent"));
+
+        CompletableFuture.allOf(futureA, futureB).join();
+
+        AgentOutcome<VisionFindings> outcomeA = futureA.join();
+        AgentOutcome<VisionFindings> outcomeB = futureB.join();
 
         if (!outcomeA.success() && !outcomeB.success()) {
             throw new PipelineFailedException(
