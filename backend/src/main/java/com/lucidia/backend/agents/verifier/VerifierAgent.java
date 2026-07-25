@@ -21,10 +21,14 @@ public class VerifierAgent {
 
     public VerificationResult verify(ReportDraft draft, VisionFindings a, VisionFindings b) {
         Set<String> groundedTokens = new HashSet<>();
-        groundedTokens.addAll(tokenize(a.summary()));
-        groundedTokens.addAll(tokenize(b.summary()));
-        for (String obs : a.observations()) groundedTokens.addAll(tokenize(obs));
-        for (String obs : b.observations()) groundedTokens.addAll(tokenize(obs));
+        if (a != null) {
+            groundedTokens.addAll(tokenize(a.summary()));
+            for (String obs : a.observations()) groundedTokens.addAll(tokenize(obs));
+        }
+        if (b != null) {
+            groundedTokens.addAll(tokenize(b.summary()));
+            for (String obs : b.observations()) groundedTokens.addAll(tokenize(obs));
+        }
 
         List<String> flags = new ArrayList<>();
         for (String sentence : draft.findings().split("(?<=[.!?])\\s+")) {
@@ -42,7 +46,7 @@ public class VerifierAgent {
                 ? "All findings traceable to at least one vision agent's observations."
                 : flags.size() + " statement(s) in the draft could not be traced to either agent's findings.";
 
-        return new VerificationResult(verified, flags, notes);
+        return VerificationResult.of(verified, flags, notes);
     }
 
     private Set<String> tokenize(String text) {

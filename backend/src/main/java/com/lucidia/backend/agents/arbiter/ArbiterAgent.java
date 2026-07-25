@@ -42,10 +42,10 @@ public class ArbiterAgent {
                 a.regionDescription(), b.regionDescription()
         );
 
-        return new ArbitrationResult(
+        return ArbitrationResult.of(
                 agree,
                 agreementScore,
-                List.of(a.summary(), b.summary()), // shown as context in the UI, not raw tokens
+                List.of(a.summary(), b.summary()),
                 findMismatchedObservations(a.observations(), b.observations(), tokensA, tokensB),
                 notes
         );

@@ -1,5 +1,7 @@
 package com.lucidia.backend.orchestrator;
 
+import java.util.List;
+
 import com.lucidia.backend.agents.arbiter.ArbitrationResult;
 import com.lucidia.backend.agents.verifier.VerificationResult;
 import com.lucidia.backend.agents.vision.VisionFindings;
@@ -10,5 +12,7 @@ public record PipelineResult(
         VisionFindings visionB,
         ArbitrationResult arbitration,
         ReportDraft report,
-        VerificationResult verification
+        VerificationResult verification,
+        boolean degraded,
+        List<String> warnings
 ) {}

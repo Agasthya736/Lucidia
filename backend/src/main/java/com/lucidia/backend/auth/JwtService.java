@@ -31,7 +31,7 @@ public class JwtService {
                 .claim("role", user.getRole().name())
                 .issuedAt(java.util.Date.from(now))
                 .expiration(java.util.Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
-                .signWith(key)
+                .signWith(key, io.jsonwebtoken.Jwts.SIG.HS512)
                 .compact();
     }
 

@@ -10,6 +10,8 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeTypeUtils;
 
+import com.lucidia.backend.agents.RetryHelper;
+
 @Service
 public class GeminiVisionAgent implements VisionAgent {
 
@@ -19,47 +21,47 @@ public class GeminiVisionAgent implements VisionAgent {
         clinician to review. Respond in this exact format:
 
         SUMMARY: <one paragraph overall impression>
-        OBSERVATIONS: <bullet list of discrete notable features>
-        REGION: <rough anatomical location>
-        CONFIDENCE: <0.0 to 1.0>
+        OBSERVATIONS: <bullet list of discrete notable features, one per line, prefixed with "-">
+        REGION: <rough anatomical location of the primary finding>
+        CONFIDENCE: <a number from 0.0 to 1.0 representing your certainty>
         """;
 
     private final ChatClient chatClient;
 
     public GeminiVisionAgent(ChatClient.Builder chatClientBuilder) {
-        this.chatClient = chatClientBuilder.build(); // ✅ KEEP SIMPLE
+        this.chatClient = chatClientBuilder.build();
     }
 
     @Override
     public VisionFindings analyze(byte[] imageBytes, String mimeType) {
+        Media imageMedia = new Media(
+                MimeTypeUtils.parseMimeType(mimeType),
+                new ByteArrayResource(imageBytes)
+        );
 
-        try {
-            Media imageMedia = new Media(
-                    MimeTypeUtils.parseMimeType(mimeType),
-                    new ByteArrayResource(imageBytes)
-            );
+        UserMessage userMessage = UserMessage.builder()
+                .text("Analyze this CT scan.")
+                .media(List.of(imageMedia))
+                .build();
 
-            UserMessage userMessage = UserMessage.builder()
-                    .text("Analyze this CT scan image.")
-                    .media(List.of(imageMedia))
-                    .build();
+        // Retries the configured model (set in application.yml) up to 3 times
+        // with exponential backoff before giving up - handles transient
+        // rate limits/network issues without needing per-call model switching.
+        String response = RetryHelper.callWithFallback(
+                List.of("default"),
+                ignored -> callModel(userMessage),
+                3,
+                1000
+        );
 
-            String response = chatClient
-                    .prompt(new Prompt(List.of(userMessage)))
-                    .system(SYSTEM_PROMPT)
-                    .call()
-                    .content();
+        return VisionFindingsParser.parse(response, providerName());
+    }
 
-            if (response == null || response.isBlank()) {
-                throw new RuntimeException("Empty response from Gemini");
-            }
-
-            return VisionFindingsParser.parse(response, providerName());
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Gemini Vision failed: " + e.getMessage(), e);
-        }
+    private String callModel(UserMessage userMessage) {
+        return chatClient.prompt(new Prompt(List.of(userMessage)))
+                .system(SYSTEM_PROMPT)
+                .call()
+                .content();
     }
 
     @Override

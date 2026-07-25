@@ -2,14 +2,19 @@ package com.lucidia.backend.agents.arbiter;
 
 import java.util.List;
 
-/**
- * Output of comparing two independent VisionFindings.
- * This is what gets written into PipelineState after arbitration.
- */
 public record ArbitrationResult(
+        boolean available,
         boolean agree,
-        double agreementScore,       // 0.0-1.0, how much overlap between the two agents' findings
+        double agreementScore,
         List<String> sharedObservations,
-        List<String> conflictingObservations, // present in one agent's findings but not the other
+        List<String> conflictingObservations,
         String notes
-) {}
+) {
+    public static ArbitrationResult unavailable(String reason) {
+        return new ArbitrationResult(false, false, 0.0, List.of(), List.of(), reason);
+    }
+
+    public static ArbitrationResult of(boolean agree, double score, List<String> shared, List<String> conflicting, String notes) {
+        return new ArbitrationResult(true, agree, score, shared, conflicting, notes);
+    }
+}

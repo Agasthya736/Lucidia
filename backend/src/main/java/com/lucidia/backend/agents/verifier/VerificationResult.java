@@ -3,7 +3,16 @@ package com.lucidia.backend.agents.verifier;
 import java.util.List;
 
 public record VerificationResult(
-        boolean verified,          // true if no unsupported claims found
-        List<String> flags,        // specific claims not traceable to either vision agent's observations
+        boolean available,
+        boolean verified,
+        List<String> flags,
         String notes
-) {}
+) {
+    public static VerificationResult unavailable(String reason) {
+        return new VerificationResult(false, false, List.of(), reason);
+    }
+
+    public static VerificationResult of(boolean verified, List<String> flags, String notes) {
+        return new VerificationResult(true, verified, flags, notes);
+    }
+}

@@ -1,8 +1,11 @@
 package com.lucidia.backend.agents.writing;
 
+import java.util.List;
+
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
+import com.lucidia.backend.agents.RetryHelper;
 import com.lucidia.backend.agents.arbiter.ArbitrationResult;
 import com.lucidia.backend.agents.vision.VisionFindings;
 
@@ -11,14 +14,17 @@ public class WritingAgent {
 
     private static final String SYSTEM_PROMPT = """
         You are a radiology report writing assistant. You draft documentation
-        only - you do not diagnose. Given two independent AI readings of the
-        same CT scan and a note on whether they agree, write a report in this
+        only - you do not diagnose. You will be given either one or two
+        independent AI readings of the same CT scan. Write a report in this
         exact format:
 
-        FINDINGS: <objective description synthesizing both readings; if they
-        conflict, describe both readings rather than picking one>
-        IMPRESSION: <brief summary; if the readings disagree, state clearly
-        that findings are discordant and require clinician review>
+        FINDINGS: <objective description. If two readings are given and they
+        conflict, describe both readings rather than picking one. If only one
+        reading is available, note that explicitly and describe it alone.>
+        IMPRESSION: <brief summary; if two readings disagree, state clearly
+        that findings are discordant and require clinician review; if only
+        one reading was available, note that no second opinion was possible
+        and clinician review is still required>
         """;
 
     private final ChatClient chatClient;
@@ -28,7 +34,34 @@ public class WritingAgent {
     }
 
     public ReportDraft draft(VisionFindings a, VisionFindings b, ArbitrationResult arbitration) {
-        String userPrompt = String.format("""
+        String userPrompt = (a != null && b != null)
+                ? buildDualPrompt(a, b, arbitration)
+                : buildSinglePrompt(a != null ? a : b);
+
+        String response = RetryHelper.callWithFallback(
+                List.of("default"),
+                ignored -> callModel(userPrompt),
+                3,
+                1000
+        );
+
+        String findings = extract(response, "FINDINGS:", "IMPRESSION:");
+        String impression = extract(response, "IMPRESSION:", null);
+        boolean flagged = !arbitration.available() || !arbitration.agree();
+
+        return new ReportDraft(findings.trim(), impression.trim(), flagged);
+    }
+
+    private String callModel(String userPrompt) {
+        return chatClient.prompt()
+                .system(SYSTEM_PROMPT)
+                .user(userPrompt)
+                .call()
+                .content();
+    }
+
+    private String buildDualPrompt(VisionFindings a, VisionFindings b, ArbitrationResult arbitration) {
+        return String.format("""
             Reading A (%s): %s
             Observations A: %s
 
@@ -44,17 +77,17 @@ public class WritingAgent {
                 arbitration.agreementScore(),
                 arbitration.notes()
         );
+    }
 
-        String response = chatClient.prompt()
-                .system(SYSTEM_PROMPT)
-                .user(userPrompt)
-                .call()
-                .content();
+    private String buildSinglePrompt(VisionFindings only) {
+        return String.format("""
+            Only one reading was available (the second vision agent failed).
 
-        String findings = extract(response, "FINDINGS:", "IMPRESSION:");
-        String impression = extract(response, "IMPRESSION:", null);
-
-        return new ReportDraft(findings.trim(), impression.trim(), !arbitration.agree());
+            Reading (%s): %s
+            Observations: %s
+            """,
+                only.provider(), only.summary(), String.join("; ", only.observations())
+        );
     }
 
     private String extract(String text, String start, String end) {

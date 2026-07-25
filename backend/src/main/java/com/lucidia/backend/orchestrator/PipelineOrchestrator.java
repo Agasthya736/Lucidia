@@ -1,7 +1,12 @@
 package com.lucidia.backend.orchestrator;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
+
 import org.springframework.stereotype.Service;
 
+import com.lucidia.backend.agents.AgentOutcome;
 import com.lucidia.backend.agents.arbiter.ArbiterAgent;
 import com.lucidia.backend.agents.arbiter.ArbitrationResult;
 import com.lucidia.backend.agents.verifier.VerificationResult;
@@ -9,6 +14,7 @@ import com.lucidia.backend.agents.verifier.VerifierAgent;
 import com.lucidia.backend.agents.vision.GeminiVisionAgent;
 import com.lucidia.backend.agents.vision.OllamaVisionAgent;
 import com.lucidia.backend.agents.vision.VisionFindings;
+import com.lucidia.backend.agents.writing.FallbackReportBuilder;
 import com.lucidia.backend.agents.writing.ReportDraft;
 import com.lucidia.backend.agents.writing.WritingAgent;
 
@@ -35,15 +41,63 @@ public class PipelineOrchestrator {
     }
 
     public PipelineResult run(byte[] imageBytes, String mimeType) {
-        VisionFindings visionA = geminiVisionAgent.analyze(imageBytes, mimeType);
-        VisionFindings visionB = ollamaVisionAgent.analyze(imageBytes, mimeType);
+        List<String> warnings = new ArrayList<>();
 
-        ArbitrationResult arbitration = arbiterAgent.reconcile(visionA, visionB);
+        AgentOutcome<VisionFindings> outcomeA = safeCall(
+                () -> geminiVisionAgent.analyze(imageBytes, mimeType), "Gemini vision agent");
+        AgentOutcome<VisionFindings> outcomeB = safeCall(
+                () -> ollamaVisionAgent.analyze(imageBytes, mimeType), "Ollama vision agent");
 
-        ReportDraft report = writingAgent.draft(visionA, visionB, arbitration);
+        if (!outcomeA.success() && !outcomeB.success()) {
+            throw new PipelineFailedException(
+                    "Both vision agents failed after exhausting retries - Gemini: " + outcomeA.errorMessage()
+                            + " | Ollama: " + outcomeB.errorMessage());
+        }
 
-        VerificationResult verification = verifierAgent.verify(report, visionA, visionB);
+        VisionFindings visionA = outcomeA.success() ? outcomeA.value() : null;
+        VisionFindings visionB = outcomeB.success() ? outcomeB.value() : null;
+        boolean degraded = visionA == null || visionB == null;
 
-        return new PipelineResult(visionA, visionB, arbitration, report, verification);
+        if (!outcomeA.success()) warnings.add("Gemini vision agent failed after retries: " + outcomeA.errorMessage());
+        if (!outcomeB.success()) warnings.add("Ollama vision agent failed after retries: " + outcomeB.errorMessage());
+
+        ArbitrationResult arbitration;
+        if (degraded) {
+            arbitration = ArbitrationResult.unavailable(
+                    "Consensus check skipped - only one vision reading was available.");
+        } else {
+            try {
+                arbitration = arbiterAgent.reconcile(visionA, visionB);
+            } catch (Exception e) {
+                arbitration = ArbitrationResult.unavailable("Arbiter failed: " + e.getMessage());
+                warnings.add("Arbiter failed: " + e.getMessage());
+            }
+        }
+
+        ReportDraft report;
+        try {
+            report = writingAgent.draft(visionA, visionB, arbitration);
+        } catch (Exception e) {
+            warnings.add("Writing agent failed after retries, using fallback template: " + e.getMessage());
+            report = FallbackReportBuilder.build(visionA, visionB);
+        }
+
+        VerificationResult verification;
+        try {
+            verification = verifierAgent.verify(report, visionA, visionB);
+        } catch (Exception e) {
+            verification = VerificationResult.unavailable("Verifier failed: " + e.getMessage());
+            warnings.add("Verifier failed: " + e.getMessage());
+        }
+
+        return new PipelineResult(visionA, visionB, arbitration, report, verification, degraded, warnings);
+    }
+
+    private <T> AgentOutcome<T> safeCall(Supplier<T> call, String agentName) {
+        try {
+            return AgentOutcome.ok(call.get());
+        } catch (Exception e) {
+            return AgentOutcome.failed(agentName + ": " + e.getMessage());
+        }
     }
 }
