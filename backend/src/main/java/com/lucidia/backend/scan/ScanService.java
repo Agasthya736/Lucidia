@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lucidia.backend.audit.AuditLogService;
 import com.lucidia.backend.orchestrator.PipelineOrchestrator;
 import com.lucidia.backend.orchestrator.PipelineResult;
 
@@ -17,16 +18,20 @@ public class ScanService {
 
     private final ScanRepository scanRepository;
     private final PipelineOrchestrator orchestrator;
+    private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public ScanService(ScanRepository scanRepository, PipelineOrchestrator orchestrator) {
+    public ScanService(ScanRepository scanRepository, PipelineOrchestrator orchestrator,
+                        AuditLogService auditLogService) {
         this.scanRepository = scanRepository;
         this.orchestrator = orchestrator;
+        this.auditLogService = auditLogService;
     }
 
     public Scan submit(UUID userId, String filename, byte[] imageBytes, String mimeType) {
         Scan scan = new Scan(userId, filename);
         scan = scanRepository.save(scan);
+        auditLogService.record(userId, "SCAN_SUBMITTED", scan.getId());
         processAsync(scan.getId(), imageBytes, mimeType);
         return scan;
     }
@@ -77,6 +82,8 @@ public class ScanService {
         }
         scan.setStatus(Scan.Status.FINALIZED);
         scan.setFinalizedAt(Instant.now());
-        return scanRepository.save(scan);
+        Scan saved = scanRepository.save(scan);
+        auditLogService.record(requestingUserId, "SCAN_FINALIZED", scanId);
+        return saved;
     }
 }
