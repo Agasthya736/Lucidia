@@ -102,10 +102,12 @@ public class PipelineOrchestrator {
     }
 
     private <T> AgentOutcome<T> safeCall(Supplier<T> call, String agentName) {
-        try {
-            return AgentOutcome.ok(call.get());
-        } catch (Exception e) {
-            return AgentOutcome.failed(agentName + ": " + e.getMessage());
-        }
+    try {
+        return AgentOutcome.ok(call.get());
+    } catch (Exception e) {
+        e.printStackTrace(); // or use log.error(...)
+        return AgentOutcome.failed(agentName + ": " + e.getClass().getSimpleName()
+                + " - " + e.getMessage());
     }
+}
 }
