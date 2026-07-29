@@ -40,3 +40,5 @@ lucidia:
   ollama:
     base-url: http://localhost:11434
     vision-model: qwen2.5vl:7b
+  medsam:
+    base-url: http://localhost:8001

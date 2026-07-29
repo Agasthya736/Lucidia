@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import com.lucidia.backend.agents.RetryHelper;
 import com.lucidia.backend.agents.arbiter.ArbitrationResult;
+import com.lucidia.backend.agents.vision.MedSamFindings;
 import com.lucidia.backend.agents.vision.VisionFindings;
 
 @Service
@@ -15,12 +16,15 @@ public class WritingAgent {
     private static final String SYSTEM_PROMPT = """
         You are a radiology report writing assistant. You draft documentation
         only - you do not diagnose. You will be given either one or two
-        independent AI readings of the same CT scan. Write a report in this
+        independent AI readings of the same CT scan, and optionally
+        supporting quantitative segmentation data. Write a report in this
         exact format:
 
         FINDINGS: <objective description. If two readings are given and they
         conflict, describe both readings rather than picking one. If only one
-        reading is available, note that explicitly and describe it alone.>
+        reading is available, note that explicitly and describe it alone.
+        If quantitative segmentation data is provided, you may reference it
+        as supporting detail, but do not treat it as a diagnosis.>
         IMPRESSION: <brief summary; if two readings disagree, state clearly
         that findings are discordant and require clinician review; if only
         one reading was available, note that no second opinion was possible
@@ -33,10 +37,11 @@ public class WritingAgent {
         this.chatClient = chatClientBuilder.build();
     }
 
-    public ReportDraft draft(VisionFindings a, VisionFindings b, ArbitrationResult arbitration) {
+    public ReportDraft draft(VisionFindings a, VisionFindings b, ArbitrationResult arbitration,
+                              MedSamFindings medSam) {
         String userPrompt = (a != null && b != null)
-                ? buildDualPrompt(a, b, arbitration)
-                : buildSinglePrompt(a != null ? a : b);
+                ? buildDualPrompt(a, b, arbitration, medSam)
+                : buildSinglePrompt(a != null ? a : b, medSam);
 
         String response = RetryHelper.callWithFallback(
                 List.of("default"),
@@ -60,7 +65,8 @@ public class WritingAgent {
                 .content();
     }
 
-    private String buildDualPrompt(VisionFindings a, VisionFindings b, ArbitrationResult arbitration) {
+    private String buildDualPrompt(VisionFindings a, VisionFindings b, ArbitrationResult arbitration,
+                                    MedSamFindings medSam) {
         return String.format("""
             Reading A (%s): %s
             Observations A: %s
@@ -70,24 +76,36 @@ public class WritingAgent {
 
             Agreement: %s (score %.2f)
             Arbitration notes: %s
+
+            %s
             """,
                 a.provider(), a.summary(), String.join("; ", a.observations()),
                 b.provider(), b.summary(), String.join("; ", b.observations()),
                 arbitration.agree() ? "AGREE" : "DISAGREE",
                 arbitration.agreementScore(),
-                arbitration.notes()
+                arbitration.notes(),
+                medSamContext(medSam)
         );
     }
 
-    private String buildSinglePrompt(VisionFindings only) {
+    private String buildSinglePrompt(VisionFindings only, MedSamFindings medSam) {
         return String.format("""
             Only one reading was available (the second vision agent failed).
 
             Reading (%s): %s
             Observations: %s
+
+            %s
             """,
-                only.provider(), only.summary(), String.join("; ", only.observations())
+                only.provider(), only.summary(), String.join("; ", only.observations()),
+                medSamContext(medSam)
         );
+    }
+
+    private String medSamContext(MedSamFindings medSam) {
+        return medSam != null
+                ? medSam.toPromptContext()
+                : "MedSAM segmentation: not available for this scan.";
     }
 
     private String extract(String text, String start, String end) {
