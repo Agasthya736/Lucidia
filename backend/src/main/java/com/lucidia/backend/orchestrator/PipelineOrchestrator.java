@@ -104,7 +104,7 @@ public class PipelineOrchestrator {
 
         VerificationResult verification;
         try {
-            verification = verifierAgent.verify(report, visionA, visionB);
+            verification = verifierAgent.verify(report, visionA, visionB,medSamFindings);
         } catch (Exception e) {
             verification = VerificationResult.unavailable("Verifier failed: " + e.getMessage());
             warnings.add("Verifier failed: " + e.getMessage());

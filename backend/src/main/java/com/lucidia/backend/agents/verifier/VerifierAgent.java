@@ -7,6 +7,7 @@ import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
+import com.lucidia.backend.agents.vision.MedSamFindings;
 import com.lucidia.backend.agents.vision.VisionFindings;
 import com.lucidia.backend.agents.writing.ReportDraft;
 
@@ -19,7 +20,7 @@ public class VerifierAgent {
             "clinician", "review", "required", "discordant"
     );
 
-    public VerificationResult verify(ReportDraft draft, VisionFindings a, VisionFindings b) {
+    public VerificationResult verify(ReportDraft draft, VisionFindings a, VisionFindings b,MedSamFindings medSam) {
         Set<String> groundedTokens = new HashSet<>();
         if (a != null) {
             groundedTokens.addAll(tokenize(a.summary()));
@@ -29,7 +30,9 @@ public class VerifierAgent {
             groundedTokens.addAll(tokenize(b.summary()));
             for (String obs : b.observations()) groundedTokens.addAll(tokenize(obs));
         }
-
+        if (medSam != null) {
+            groundedTokens.addAll(tokenize(medSam.toPromptContext()));
+        }
         List<String> flags = new ArrayList<>();
         for (String sentence : draft.findings().split("(?<=[.!?])\\s+")) {
             if (sentence.isBlank()) continue;

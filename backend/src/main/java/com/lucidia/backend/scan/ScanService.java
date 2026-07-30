@@ -86,4 +86,9 @@ public class ScanService {
         auditLogService.record(requestingUserId, "SCAN_FINALIZED", scanId);
         return saved;
     }
+    public void delete(UUID scanId, UUID requestingUserId) {
+        Scan scan = get(scanId, requestingUserId); // reuses existing ownership check
+        scanRepository.delete(scan);
+        auditLogService.record(requestingUserId, "SCAN_DELETED", scanId);
+    }
 }

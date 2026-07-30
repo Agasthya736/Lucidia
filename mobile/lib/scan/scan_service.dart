@@ -72,4 +72,15 @@ class ScanService {
     }
     return jsonDecode(response.body);
   }
+
+  Future<void> deleteScan(String id) async {
+    final auth = await _authHeader();
+    final response = await http.delete(
+      Uri.parse('$baseUrl/api/scans/$id'),
+      headers: {'Authorization': auth},
+    );
+    if (response.statusCode != 204) {
+      throw Exception('Delete failed (${response.statusCode})');
+    }
+  }
 }
