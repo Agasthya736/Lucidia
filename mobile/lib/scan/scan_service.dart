@@ -4,7 +4,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ScanService {
-  static const String baseUrl = 'http://localhost:8080';
+  static const String baseUrl = "http://10.209.146.110:8080";
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   Future<String> _authHeader() async {
