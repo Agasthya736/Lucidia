@@ -1,12 +1,14 @@
 package com.lucidia.backend.agents.verifier;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lucidia.backend.agents.RetryHelper;
 import com.lucidia.backend.agents.vision.MedSamFindings;
 import com.lucidia.backend.agents.vision.VisionFindings;
 import com.lucidia.backend.agents.writing.ReportDraft;
@@ -14,49 +16,117 @@ import com.lucidia.backend.agents.writing.ReportDraft;
 @Service
 public class VerifierAgent {
 
-    private static final Set<String> STOPWORDS = Set.of(
-            "the", "a", "an", "is", "are", "of", "in", "on", "at", "no", "and", "or",
-            "with", "within", "without", "to", "for", "this", "that", "both", "readings",
-            "clinician", "review", "required", "discordant"
-    );
+    private static final String SYSTEM_PROMPT = """
+        You are a strict fact-checking assistant for radiology report drafts.
+        You will be given one or two independent AI readings of a CT scan,
+        optionally some automated segmentation data, and a drafted report
+        written from those readings.
 
-    public VerificationResult verify(ReportDraft draft, VisionFindings a, VisionFindings b,MedSamFindings medSam) {
-        Set<String> groundedTokens = new HashSet<>();
-        if (a != null) {
-            groundedTokens.addAll(tokenize(a.summary()));
-            for (String obs : a.observations()) groundedTokens.addAll(tokenize(obs));
-        }
-        if (b != null) {
-            groundedTokens.addAll(tokenize(b.summary()));
-            for (String obs : b.observations()) groundedTokens.addAll(tokenize(obs));
-        }
-        if (medSam != null) {
-            groundedTokens.addAll(tokenize(medSam.toPromptContext()));
-        }
-        List<String> flags = new ArrayList<>();
-        for (String sentence : draft.findings().split("(?<=[.!?])\\s+")) {
-            if (sentence.isBlank()) continue;
-            Set<String> sentenceTokens = tokenize(sentence);
-            long overlap = sentenceTokens.stream().filter(groundedTokens::contains).count();
-            double ratio = sentenceTokens.isEmpty() ? 0 : (double) overlap / sentenceTokens.size();
-            if (ratio < 0.3) {
-                flags.add("Unsupported claim: \"" + sentence.trim() + "\"");
-            }
+        Your job has two parts:
+
+        1. UNSUPPORTED CLAIMS: Identify any sentence in the draft's FINDINGS
+        that asserts something (an anatomical structure, finding, location,
+        or description) that is NOT stated or reasonably implied by the
+        supplied readings or segmentation data. Do not flag sentences that
+        merely summarize, compare, or synthesize the readings in different
+        words - only flag sentences that introduce new clinical content not
+        present in any source.
+
+        2. MISSING FINDINGS: Identify any significant finding, observation,
+        or region mentioned in the readings that is absent from the draft's
+        FINDINGS section entirely.
+
+        Respond with ONLY valid JSON, no other text, in this exact shape:
+        {
+          "unsupported_claims": ["<exact sentence from the draft>", ...],
+          "missing_findings": ["<short description of what was omitted>", ...]
         }
 
-        boolean verified = flags.isEmpty();
-        String notes = verified
-                ? "All findings traceable to at least one vision agent's observations."
-                : flags.size() + " statement(s) in the draft could not be traced to either agent's findings.";
+        If there are none, use empty arrays. Do not include any explanation
+        outside the JSON.
+        """;
 
-        return VerificationResult.of(verified, flags, notes);
+    private final ChatClient chatClient;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public VerifierAgent(ChatClient.Builder chatClientBuilder) {
+        this.chatClient = chatClientBuilder.build();
     }
 
-    private Set<String> tokenize(String text) {
-        Set<String> tokens = new HashSet<>();
-        for (String word : text.toLowerCase().replaceAll("[^a-z0-9\\s]", "").split("\\s+")) {
-            if (word.length() > 2 && !STOPWORDS.contains(word)) tokens.add(word);
+    public VerificationResult verify(ReportDraft draft, VisionFindings a, VisionFindings b, MedSamFindings medSam) {
+        String userPrompt = buildPrompt(draft, a, b, medSam);
+
+        String response;
+        try {
+            response = RetryHelper.callWithFallback(
+                    List.of("default"),
+                    ignored -> callModel(userPrompt),
+                    3,
+                    1000
+            );
+        } catch (Exception e) {
+            return VerificationResult.unavailable("Verifier LLM call failed: " + e.getMessage());
         }
-        return tokens;
+
+        return parseResponse(response);
+    }
+
+    private String callModel(String userPrompt) {
+        return chatClient.prompt()
+                .system(SYSTEM_PROMPT)
+                .user(userPrompt)
+                .call()
+                .content();
+    }
+
+    private String buildPrompt(ReportDraft draft, VisionFindings a, VisionFindings b, MedSamFindings medSam) {
+        StringBuilder sb = new StringBuilder();
+        if (a != null) {
+            sb.append("Reading A (").append(a.provider()).append("): ").append(a.summary()).append("\n");
+            sb.append("Observations A: ").append(String.join("; ", a.observations())).append("\n\n");
+        }
+        if (b != null) {
+            sb.append("Reading B (").append(b.provider()).append("): ").append(b.summary()).append("\n");
+            sb.append("Observations B: ").append(String.join("; ", b.observations())).append("\n\n");
+        }
+        if (medSam != null) {
+            sb.append(medSam.toPromptContext()).append("\n\n");
+        }
+        sb.append("Draft FINDINGS:\n").append(draft.findings()).append("\n\n");
+        sb.append("Draft IMPRESSION:\n").append(draft.impression());
+        return sb.toString();
+    }
+
+    private VerificationResult parseResponse(String response) {
+        try {
+            String cleaned = response.trim();
+            if (cleaned.startsWith("```")) {
+                cleaned = cleaned.replaceAll("^```(json)?", "").replaceAll("```$", "").trim();
+            }
+            JsonNode node = objectMapper.readTree(cleaned);
+
+            List<String> flags = new ArrayList<>();
+            JsonNode unsupported = node.get("unsupported_claims");
+            if (unsupported != null) {
+                for (JsonNode claim : unsupported) {
+                    flags.add("Unsupported claim: \"" + claim.asText() + "\"");
+                }
+            }
+            JsonNode missing = node.get("missing_findings");
+            if (missing != null) {
+                for (JsonNode m : missing) {
+                    flags.add("Possibly missing finding: " + m.asText());
+                }
+            }
+
+            boolean verified = flags.isEmpty();
+            String notes = verified
+                    ? "All findings traceable to the supplied readings; no significant omissions detected."
+                    : flags.size() + " issue(s) found - see flags below.";
+
+            return VerificationResult.of(verified, flags, notes);
+        } catch (Exception e) {
+            return VerificationResult.unavailable("Failed to parse verifier response: " + e.getMessage());
+        }
     }
 }
