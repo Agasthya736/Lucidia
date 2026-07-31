@@ -8,7 +8,8 @@ class VisionFindingsParser {
     static VisionFindings parse(String rawText, String provider) {
         String summary = extractField(rawText, "SUMMARY:", "OBSERVATIONS:");
         String observationsBlock = extractField(rawText, "OBSERVATIONS:", "REGION:");
-        String region = extractField(rawText, "REGION:", "CONFIDENCE:");
+        String region = extractField(rawText, "REGION:", "BBOX:");
+        String bboxStr = extractField(rawText, "BBOX:", "CONFIDENCE:");
         String confidenceStr = extractField(rawText, "CONFIDENCE:", null);
 
         List<String> observations = new ArrayList<>();
@@ -26,7 +27,29 @@ class VisionFindingsParser {
             confidence = 0.5;
         }
 
-        return new VisionFindings(provider, summary.trim(), observations, region.trim(), confidence);
+        int[] boundingBox = parseBbox(bboxStr);
+
+        return new VisionFindings(provider, summary.trim(), observations, region.trim(), confidence, boundingBox);
+    }
+
+    private static int[] parseBbox(String bboxStr) {
+        if (bboxStr == null || bboxStr.isBlank()) return null;
+        String cleaned = bboxStr.trim();
+        if (cleaned.equalsIgnoreCase("unknown") || cleaned.equalsIgnoreCase("none")) return null;
+
+        try {
+            String[] parts = cleaned.split(",");
+            if (parts.length != 4) return null;
+            int[] box = new int[4];
+            for (int i = 0; i < 4; i++) {
+                box[i] = Integer.parseInt(parts[i].trim());
+            }
+            // basic sanity check: x2 > x1, y2 > y1
+            if (box[2] <= box[0] || box[3] <= box[1]) return null;
+            return box;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static String extractField(String text, String startMarker, String endMarker) {

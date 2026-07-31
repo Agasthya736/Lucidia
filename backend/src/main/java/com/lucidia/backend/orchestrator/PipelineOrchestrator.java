@@ -57,14 +57,11 @@ public class PipelineOrchestrator {
                 () -> safeCall(() -> geminiVisionAgent.analyze(imageBytes, mimeType), "Gemini vision agent"));
         CompletableFuture<AgentOutcome<VisionFindings>> futureB = CompletableFuture.supplyAsync(
                 () -> safeCall(() -> ollamaVisionAgent.analyze(imageBytes, mimeType), "Ollama vision agent"));
-        CompletableFuture<AgentOutcome<MedSamFindings>> futureMedSam = CompletableFuture.supplyAsync(
-                () -> safeCall(() -> runMedSam(imageBytes), "MedSAM segmentation"));
 
-        CompletableFuture.allOf(futureA, futureB, futureMedSam).join();
+        CompletableFuture.allOf(futureA, futureB).join();
 
         AgentOutcome<VisionFindings> outcomeA = futureA.join();
         AgentOutcome<VisionFindings> outcomeB = futureB.join();
-        AgentOutcome<MedSamFindings> outcomeMedSam = futureMedSam.join();
 
         if (!outcomeA.success() && !outcomeB.success()) {
             throw new PipelineFailedException(
@@ -74,11 +71,14 @@ public class PipelineOrchestrator {
 
         VisionFindings visionA = outcomeA.success() ? outcomeA.value() : null;
         VisionFindings visionB = outcomeB.success() ? outcomeB.value() : null;
-        MedSamFindings medSamFindings = outcomeMedSam.success() ? outcomeMedSam.value() : null;
         boolean degraded = visionA == null || visionB == null;
 
         if (!outcomeA.success()) warnings.add("Gemini vision agent failed after retries: " + outcomeA.errorMessage());
         if (!outcomeB.success()) warnings.add("Ollama vision agent failed after retries: " + outcomeB.errorMessage());
+
+        // MedSAM runs after vision agents, using Gemini's bbox if available
+        AgentOutcome<MedSamFindings> outcomeMedSam = safeCall(() -> runMedSam(imageBytes, visionA), "MedSAM segmentation");
+        MedSamFindings medSamFindings = outcomeMedSam.success() ? outcomeMedSam.value() : null;
         if (!outcomeMedSam.success()) warnings.add("MedSAM segmentation failed (non-fatal): " + outcomeMedSam.errorMessage());
 
         ArbitrationResult arbitration;
@@ -104,7 +104,7 @@ public class PipelineOrchestrator {
 
         VerificationResult verification;
         try {
-            verification = verifierAgent.verify(report, visionA, visionB,medSamFindings);
+            verification = verifierAgent.verify(report, visionA, visionB, medSamFindings);
         } catch (Exception e) {
             verification = VerificationResult.unavailable("Verifier failed: " + e.getMessage());
             warnings.add("Verifier failed: " + e.getMessage());
@@ -113,15 +113,30 @@ public class PipelineOrchestrator {
         return new PipelineResult(visionA, visionB, arbitration, report, verification, degraded, warnings);
     }
 
-    private MedSamFindings runMedSam(byte[] imageBytes) {
+    private MedSamFindings runMedSam(byte[] imageBytes, VisionFindings visionA) {
         try {
             BufferedImage img = ImageIO.read(new ByteArrayInputStream(imageBytes));
             int width = img.getWidth();
             int height = img.getHeight();
-            return medSamClient.segment(imageBytes, "scan.png", 0, 0, width, height);
+
+            int x1 = 0, y1 = 0, x2 = width, y2 = height;
+
+            if (visionA != null && visionA.boundingBox() != null) {
+                int[] box = visionA.boundingBox(); // 0-1000 scale from Gemini
+                x1 = scale(box[0], width);
+                y1 = scale(box[1], height);
+                x2 = scale(box[2], width);
+                y2 = scale(box[3], height);
+            }
+
+            return medSamClient.segment(imageBytes, "scan.png", x1, y1, x2, y2);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to read image dimensions for MedSAM: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to prepare MedSAM segmentation: " + e.getMessage(), e);
         }
+    }
+
+    private int scale(int value0to1000, int dimensionPixels) {
+        return (int) Math.round((value0to1000 / 1000.0) * dimensionPixels);
     }
 
     private <T> AgentOutcome<T> safeCall(Supplier<T> call, String agentName) {

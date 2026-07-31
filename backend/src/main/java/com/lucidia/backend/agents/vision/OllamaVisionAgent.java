@@ -33,15 +33,17 @@ public class OllamaVisionAgent implements VisionAgent {
     - Your CONFIDENCE score must reflect your actual certainty. If the
       image is ambiguous, ill-defined, or you are unsure of the anatomy,
       use a low score (below 0.5). Do not default to a high score.
-    - If quantitative segmentation data is provided below, treat it as
-      supporting evidence about the boundaries and location of a region -
-      but do not let it override what you actually observe in the image.
 
     Respond in this exact format:
 
     SUMMARY: <one paragraph overall impression>
     OBSERVATIONS: <bullet list of discrete notable features, one per line, prefixed with "-">
     REGION: <rough anatomical location of the primary finding, or "uncertain" if unclear>
+    BBOX: <a tight bounding box around the single most significant finding, as
+    four comma-separated integers x1,y1,x2,y2 on a 0-1000 scale relative to
+    the image width and height (top-left is 0,0; bottom-right is 1000,1000).
+    If there is no single discrete finding to box, or you are not confident
+    estimating spatial coordinates, write "unknown" instead.>
     CONFIDENCE: <a number from 0.0 to 1.0 representing your genuine certainty>
     """;
 
