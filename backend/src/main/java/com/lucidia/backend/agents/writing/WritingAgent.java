@@ -39,6 +39,20 @@ public class WritingAgent {
     specific point of disagreement using language drawn from the readings;
     if only one reading was available, note that no second opinion was
     possible and clinician review is still required>
+    DIFFERENTIAL: <Only include this if the findings describe a genuine
+    abnormality - a mass, lesion, opacity, effusion, or other discrete
+    abnormal finding. If the readings describe a normal or unremarkable
+    scan, write exactly: "No abnormality identified; differential not
+    applicable." Otherwise, based only on the morphological features
+    described above, list 2-4 possible general categories of explanation a
+    clinician might consider, from most to least likely given the visual
+    description. Use general categories, not definitive disease names (e.g.
+    "a malignant neoplasm" rather than a specific cancer subtype, "an
+    infectious or inflammatory process" rather than naming a specific
+    pathogen). Every entry must be phrased as a possibility, never a
+    conclusion (e.g. "could represent...", "is consistent with, among other
+    possibilities..."). Do not introduce any finding or feature not already
+    stated in FINDINGS.>
 
     Do not introduce anatomical terms, measurements, or observations that
     do not appear in the supplied reading(s) or segmentation data.
@@ -63,10 +77,11 @@ public class WritingAgent {
         );
 
         String findings = extract(response, "FINDINGS:", "IMPRESSION:");
-        String impression = extract(response, "IMPRESSION:", null);
+        String impression = extract(response, "IMPRESSION:", "DIFFERENTIAL:");
+        String differential = extract(response, "DIFFERENTIAL:", null);
         boolean flagged = !arbitration.available() || !arbitration.agree();
 
-        return new ReportDraft(findings.trim(), impression.trim(), flagged);
+        return new ReportDraft(findings.trim(), impression.trim(), differential.trim(), flagged);
     }
 
     private String callModel(String userPrompt) {

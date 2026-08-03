@@ -17,34 +17,42 @@ import com.lucidia.backend.agents.writing.ReportDraft;
 public class VerifierAgent {
 
     private static final String SYSTEM_PROMPT = """
-        You are a strict fact-checking assistant for radiology report drafts.
-        You will be given one or two independent AI readings of a CT scan,
-        optionally some automated segmentation data, and a drafted report
-        written from those readings.
+    You are a strict fact-checking assistant for radiology report drafts.
+    You will be given one or two independent AI readings of a CT scan,
+    optionally some automated segmentation data, and a drafted report
+    written from those readings.
 
-        Your job has two parts:
+    Your job has three parts:
 
-        1. UNSUPPORTED CLAIMS: Identify any sentence in the draft's FINDINGS
-        that asserts something (an anatomical structure, finding, location,
-        or description) that is NOT stated or reasonably implied by the
-        supplied readings or segmentation data. Do not flag sentences that
-        merely summarize, compare, or synthesize the readings in different
-        words - only flag sentences that introduce new clinical content not
-        present in any source.
+    1. UNSUPPORTED CLAIMS: Identify any sentence in the draft's FINDINGS
+    that asserts something (an anatomical structure, finding, location,
+    or description) that is NOT stated or reasonably implied by the
+    supplied readings or segmentation data. Do not flag sentences that
+    merely summarize, compare, or synthesize the readings in different
+    words - only flag sentences that introduce new clinical content not
+    present in any source.
 
-        2. MISSING FINDINGS: Identify any significant finding, observation,
-        or region mentioned in the readings that is absent from the draft's
-        FINDINGS section entirely.
+    2. MISSING FINDINGS: Identify any significant finding, observation,
+    or region mentioned in the readings that is absent from the draft's
+    FINDINGS section entirely.
 
-        Respond with ONLY valid JSON, no other text, in this exact shape:
-        {
-          "unsupported_claims": ["<exact sentence from the draft>", ...],
-          "missing_findings": ["<short description of what was omitted>", ...]
-        }
+    3. UNGROUNDED DIFFERENTIAL: If a DIFFERENTIAL section is present and
+    is not the "not applicable" placeholder, check that every possibility
+    listed is a reasonable general category given the FINDINGS - not a
+    specific disease name, and not something with no connection to the
+    described features. Flag any entry that names an overly specific
+    disease, or that has no clear connection to the findings described.
 
-        If there are none, use empty arrays. Do not include any explanation
-        outside the JSON.
-        """;
+    Respond with ONLY valid JSON, no other text, in this exact shape:
+    {
+      "unsupported_claims": ["<exact sentence from the draft>", ...],
+      "missing_findings": ["<short description of what was omitted>", ...],
+      "differential_issues": ["<short description of the problem>", ...]
+    }
+
+    If there are none, use empty arrays. Do not include any explanation
+    outside the JSON.
+    """;
 
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -93,40 +101,47 @@ public class VerifierAgent {
             sb.append(medSam.toPromptContext()).append("\n\n");
         }
         sb.append("Draft FINDINGS:\n").append(draft.findings()).append("\n\n");
-        sb.append("Draft IMPRESSION:\n").append(draft.impression());
+        sb.append("Draft IMPRESSION:\n").append(draft.impression()).append("\n\n");
+        sb.append("Draft DIFFERENTIAL:\n").append(draft.differential());
         return sb.toString();
     }
 
     private VerificationResult parseResponse(String response) {
-        try {
-            String cleaned = response.trim();
-            if (cleaned.startsWith("```")) {
-                cleaned = cleaned.replaceAll("^```(json)?", "").replaceAll("```$", "").trim();
-            }
-            JsonNode node = objectMapper.readTree(cleaned);
-
-            List<String> flags = new ArrayList<>();
-            JsonNode unsupported = node.get("unsupported_claims");
-            if (unsupported != null) {
-                for (JsonNode claim : unsupported) {
-                    flags.add("Unsupported claim: \"" + claim.asText() + "\"");
-                }
-            }
-            JsonNode missing = node.get("missing_findings");
-            if (missing != null) {
-                for (JsonNode m : missing) {
-                    flags.add("Possibly missing finding: " + m.asText());
-                }
-            }
-
-            boolean verified = flags.isEmpty();
-            String notes = verified
-                    ? "All findings traceable to the supplied readings; no significant omissions detected."
-                    : flags.size() + " issue(s) found - see flags below.";
-
-            return VerificationResult.of(verified, flags, notes);
-        } catch (Exception e) {
-            return VerificationResult.unavailable("Failed to parse verifier response: " + e.getMessage());
+    try {
+        String cleaned = response.trim();
+        if (cleaned.startsWith("```")) {
+            cleaned = cleaned.replaceAll("^```(json)?", "").replaceAll("```$", "").trim();
         }
+        JsonNode node = objectMapper.readTree(cleaned);
+
+        List<String> flags = new ArrayList<>();
+        JsonNode unsupported = node.get("unsupported_claims");
+        if (unsupported != null) {
+            for (JsonNode claim : unsupported) {
+                flags.add("Unsupported claim: \"" + claim.asText() + "\"");
+            }
+        }
+        JsonNode missing = node.get("missing_findings");
+        if (missing != null) {
+            for (JsonNode m : missing) {
+                flags.add("Possibly missing finding: " + m.asText());
+            }
+        }
+        JsonNode differentialIssues = node.get("differential_issues");
+        if (differentialIssues != null) {
+            for (JsonNode d : differentialIssues) {
+                flags.add("Differential issue: " + d.asText());
+            }
+        }
+
+        boolean verified = flags.isEmpty();
+        String notes = verified
+                ? "All findings traceable to the supplied readings; no significant omissions detected."
+                : flags.size() + " issue(s) found - see flags below.";
+
+        return VerificationResult.of(verified, flags, notes);
+    } catch (Exception e) {
+        return VerificationResult.unavailable("Failed to parse verifier response: " + e.getMessage());
     }
+}
 }

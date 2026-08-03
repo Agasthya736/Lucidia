@@ -358,6 +358,10 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         _fieldLabel('Impression'),
         const SizedBox(height: 6),
         Text(data['impression'] ?? '', style: const TextStyle(color: LucidiaColors.textPrimary, height: 1.5)),
+        if (_showDifferential(data['differential'])) ...[
+          const SizedBox(height: 16),
+          _differentialCard(data['differential']),
+        ],
         if (flagged) ...[
           const SizedBox(height: 14),
           Container(
@@ -382,6 +386,55 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         const SizedBox(height: 20),
         _actionBar(),
       ],
+    );
+  }
+
+  bool _showDifferential(dynamic differential) {
+    if (differential == null) return false;
+    final text = differential.toString().trim();
+    if (text.isEmpty) return false;
+    return !text.toLowerCase().contains('not applicable');
+  }
+
+  Widget _differentialCard(String differential) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: LucidiaColors.violet.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: LucidiaColors.violet.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.psychology_outlined, color: LucidiaColors.violet, size: 18),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'AI-Suggested Differential — Not a Diagnosis',
+                  style: TextStyle(color: LucidiaColors.violet, fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'General possibilities based on visual features only. Must be confirmed by a clinician.',
+            style: TextStyle(
+              color: LucidiaColors.textSecondary.withValues(alpha: 0.8),
+              fontSize: 11,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            differential,
+            style: const TextStyle(color: LucidiaColors.textPrimary, fontSize: 13, height: 1.5),
+          ),
+        ],
+      ),
     );
   }
 

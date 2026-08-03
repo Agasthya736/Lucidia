@@ -12,6 +12,8 @@ public class FallbackReportBuilder {
         String impression = "Automated report generation failed after all retries; findings shown are "
                 + "raw, unsynthesized agent output. Clinician review required.";
 
-        return new ReportDraft(findings.toString().trim(), impression, true);
+        String differential = "Not generated - automated report writing failed.";
+
+        return new ReportDraft(findings.toString().trim(), impression, differential, true);
     }
 }
