@@ -14,8 +14,8 @@ public class ScanDtos {
     }
 
     public record ScanDetail(
-            UUID id, String status, String imageFilename,
-            Object visionA, Object visionB, Object arbitration, Object report, Object verification,
-            String errorMessage, Instant createdAt, Instant completedAt, Instant finalizedAt
+        UUID id, String status, String imageFilename,
+        Object visionA, Object visionB, Object medSam, Object arbitration, Object report, Object verification,
+        String errorMessage, Instant createdAt, Instant completedAt, Instant finalizedAt
     ) {}
 }

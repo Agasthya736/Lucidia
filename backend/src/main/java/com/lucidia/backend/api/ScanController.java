@@ -25,6 +25,7 @@ import com.lucidia.backend.auth.User;
 import com.lucidia.backend.auth.UserRepository;
 import com.lucidia.backend.dto.ScanDtos.ScanDetail;
 import com.lucidia.backend.dto.ScanDtos.ScanSummary;
+import com.lucidia.backend.scan.ImageStorageService;
 import com.lucidia.backend.scan.ReportPdfService;
 import com.lucidia.backend.scan.Scan;
 import com.lucidia.backend.scan.ScanService;
@@ -36,20 +37,22 @@ public class ScanController {
     private final ScanService scanService;
     private final UserRepository userRepository;
     private final ReportPdfService reportPdfService;
-    
+    private final ImageStorageService imageStorageService;
     // Direct instantiation to bypass Spring Boot auto-configuration issues
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ScanController(
             ScanService scanService,
             UserRepository userRepository,
-            ReportPdfService reportPdfService) {
+            ReportPdfService reportPdfService,
+            ImageStorageService imageStorageService) {
 
         this.scanService = scanService;
         this.userRepository = userRepository;
         this.reportPdfService = reportPdfService;
+        this.imageStorageService = imageStorageService;
     }
-
+    
     private UUID currentUserId(Jwt jwt) {
         if (jwt == null) {
             throw new IllegalArgumentException("Authentication required");
@@ -103,7 +106,31 @@ public class ScanController {
 
         return toDetail(scan);
     }
+    @GetMapping("/{id}/image")
+public ResponseEntity<byte[]> getImage(
+        @AuthenticationPrincipal Jwt jwt,
+        @PathVariable UUID id) {
 
+    UUID userId = currentUserId(jwt);
+    Scan scan = scanService.get(id, userId);
+
+    byte[] imageBytes = imageStorageService.load(id);
+    MediaType contentType = inferContentType(scan.getImageFilename());
+
+    return ResponseEntity.ok()
+            .contentType(contentType)
+            .body(imageBytes);
+}
+
+private MediaType inferContentType(String filename) {
+    if (filename == null) return MediaType.IMAGE_JPEG;
+    String ext = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+    return switch (ext) {
+        case "png" -> MediaType.IMAGE_PNG;
+        case "webp" -> MediaType.valueOf("image/webp");
+        default -> MediaType.IMAGE_JPEG;
+    };
+}
     @PatchMapping("/{id}/finalize")
     public ScanDetail finalizeScan(
             @AuthenticationPrincipal Jwt jwt,
@@ -142,23 +169,23 @@ public class ScanController {
     }
 
     private ScanDetail toDetail(Scan scan) throws IOException {
-
         return new ScanDetail(
-                scan.getId(),
-                scan.getStatus().name(),
-                scan.getImageFilename(),
+            scan.getId(),
+            scan.getStatus().name(),
+            scan.getImageFilename(),
 
-                parseOrNull(scan.getVisionAJson()),
-                parseOrNull(scan.getVisionBJson()),
-                parseOrNull(scan.getArbitrationJson()),
-                parseOrNull(scan.getReportJson()),
-                parseOrNull(scan.getVerificationJson()),
+            parseOrNull(scan.getVisionAJson()),
+            parseOrNull(scan.getVisionBJson()),
+            parseOrNull(scan.getMedSamJson()),
+            parseOrNull(scan.getArbitrationJson()),
+            parseOrNull(scan.getReportJson()),
+            parseOrNull(scan.getVerificationJson()),
 
-                scan.getErrorMessage(),
+            scan.getErrorMessage(),
 
-                scan.getCreatedAt(),
-                scan.getCompletedAt(),
-                scan.getFinalizedAt());
+            scan.getCreatedAt(),
+            scan.getCompletedAt(),
+            scan.getFinalizedAt());
     }
 
     private Object parseOrNull(String json) throws IOException {

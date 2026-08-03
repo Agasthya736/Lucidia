@@ -19,23 +19,26 @@ public class ScanService {
     private final ScanRepository scanRepository;
     private final PipelineOrchestrator orchestrator;
     private final AuditLogService auditLogService;
+    private final ImageStorageService imageStorageService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ScanService(ScanRepository scanRepository, PipelineOrchestrator orchestrator,
-                        AuditLogService auditLogService) {
+                    AuditLogService auditLogService, ImageStorageService imageStorageService) {
         this.scanRepository = scanRepository;
         this.orchestrator = orchestrator;
         this.auditLogService = auditLogService;
+        this.imageStorageService = imageStorageService;
     }
 
     public Scan submit(UUID userId, String filename, byte[] imageBytes, String mimeType) {
         Scan scan = new Scan(userId, filename);
         scan = scanRepository.save(scan);
+        imageStorageService.save(scan.getId(), imageBytes);
         auditLogService.record(userId, "SCAN_SUBMITTED", scan.getId());
         processAsync(scan.getId(), imageBytes, mimeType);
         return scan;
     }
-
+    
     @Async
     public void processAsync(UUID scanId, byte[] imageBytes, String mimeType) {
         Scan scan = scanRepository.findById(scanId)

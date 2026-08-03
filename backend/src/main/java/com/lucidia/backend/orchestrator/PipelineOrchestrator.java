@@ -110,7 +110,7 @@ public class PipelineOrchestrator {
             warnings.add("Verifier failed: " + e.getMessage());
         }
 
-        return new PipelineResult(visionA, visionB, arbitration, report, verification, degraded, warnings);
+        return new PipelineResult(visionA, visionB, medSamFindings, arbitration, report, verification, degraded, warnings);
     }
 
     private MedSamFindings runMedSam(byte[] imageBytes, VisionFindings visionA) {

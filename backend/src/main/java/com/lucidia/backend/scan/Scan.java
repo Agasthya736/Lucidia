@@ -62,7 +62,11 @@ public class Scan {
     protected Scan() {
         // JPA
     }
+    @Column(name = "medsam_json", columnDefinition = "TEXT")
+    private String medSamJson;
 
+    public String getMedSamJson() { return medSamJson; }
+    public void setMedSamJson(String v) { this.medSamJson = v; }
     public Scan(UUID userId, String imageFilename) {
         this.userId = userId;
         this.imageFilename = imageFilename;
@@ -93,4 +97,5 @@ public class Scan {
     public void setCompletedAt(Instant v) { this.completedAt = v; }
     public Instant getFinalizedAt() { return finalizedAt; }
     public void setFinalizedAt(Instant v) { this.finalizedAt = v; }
+    
 }
