@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import '../shared/theme.dart';
 import 'scan_service.dart';
@@ -19,6 +22,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
   bool _finalizing = false;
   String? _error;
 
+  Uint8List? _imageBytes;
+  bool _imageLoading = true;
+  double? _imageAspectRatio;
+  Size? _imagePixelSize;
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +41,28 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
       setState(() => _error = e.toString());
     } finally {
       setState(() => _loading = false);
+    }
+    _loadImage();
+  }
+
+  Future<void> _loadImage() async {
+    try {
+      final bytes = await _scanService.fetchImageBytes(widget.scanId);
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final ratio = frame.image.width / frame.image.height;
+
+      if (mounted) {
+        setState(() {
+          _imageBytes = bytes;
+          _imageAspectRatio = ratio;
+          _imagePixelSize = Size(frame.image.width.toDouble(), frame.image.height.toDouble());
+        });
+      }
+    } catch (_) {
+      // Non-fatal - image display is a bonus, not required for the report to work
+    } finally {
+      if (mounted) setState(() => _imageLoading = false);
     }
   }
 
@@ -168,6 +198,9 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
 
   Widget _buildContent() {
     final scan = _scan!;
+    final verified = scan['verification']?['verified'] == true;
+    final hasVerification = scan['verification'] != null;
+
     return CustomScrollView(
       slivers: [
         SliverPadding(
@@ -176,59 +209,177 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
             delegate: SliverChildListDelegate([
               _statusHero(scan),
               const SizedBox(height: 20),
-              if (scan['arbitration'] != null) ...[
-                _arbitrationBanner(scan['arbitration']),
-                const SizedBox(height: 16),
-              ],
-              if (scan['report'] != null) ...[
-                _ExpandableSection(
-                  icon: Icons.description_outlined,
-                  title: 'Draft Report',
-                  accent: LucidiaColors.teal,
-                  initiallyExpanded: true,
-                  child: _reportBody(scan['report']),
+              _scanImageCard(scan),
+              const SizedBox(height: 28),
+
+              // ---- Pipeline timeline ----
+              if (scan['visionA'] != null)
+                _TimelineNode(
+                  icon: Icons.visibility_outlined,
+                  color: LucidiaColors.violet,
+                  isFirst: true,
+                  isLast: false,
+                  child: _timelineCard(
+                    title: 'Vision A · Gemini',
+                    color: LucidiaColors.violet,
+                    child: _agentBody(scan['visionA']),
+                  ),
                 ),
-                const SizedBox(height: 12),
-              ],
-              if (scan['verification'] != null) ...[
-                _ExpandableSection(
-                  icon: (scan['verification']['verified'] == true)
-                      ? Icons.fact_check_outlined
-                      : Icons.warning_amber_outlined,
-                  title: (scan['verification']['verified'] == true)
-                      ? 'Verification passed'
-                      : 'Verification flags',
-                  accent: (scan['verification']['verified'] == true)
+              if (scan['visionB'] != null)
+                _TimelineNode(
+                  icon: Icons.visibility_outlined,
+                  color: LucidiaColors.violet,
+                  isFirst: false,
+                  isLast: false,
+                  child: _timelineCard(
+                    title: 'Vision B · Ollama',
+                    color: LucidiaColors.violet,
+                    child: _agentBody(scan['visionB']),
+                  ),
+                ),
+              if (scan['arbitration'] != null)
+                _TimelineNode(
+                  icon: scan['arbitration']['agree'] == true
+                      ? Icons.handshake_outlined
+                      : Icons.compare_arrows,
+                  color: scan['arbitration']['agree'] == true
                       ? LucidiaColors.teal
-                      : LucidiaColors.error,
-                  initiallyExpanded: scan['verification']['verified'] != true,
-                  child: _verificationBody(scan['verification']),
+                      : LucidiaColors.violet,
+                  isFirst: false,
+                  isLast: false,
+                  child: _arbitrationCard(scan['arbitration']),
                 ),
-                const SizedBox(height: 12),
-              ],
-              if (scan['visionA'] != null) ...[
-                _ExpandableSection(
-                  icon: Icons.visibility_outlined,
-                  title: 'Vision A · Gemini',
-                  accent: LucidiaColors.violet,
-                  child: _agentBody(scan['visionA']),
+              if (scan['report'] != null)
+                _TimelineNode(
+                  icon: Icons.description_outlined,
+                  color: LucidiaColors.teal,
+                  isFirst: false,
+                  isLast: !hasVerification,
+                  child: _timelineCard(
+                    title: 'Draft Report',
+                    color: LucidiaColors.teal,
+                    child: _reportBody(scan['report']),
+                  ),
                 ),
-                const SizedBox(height: 12),
-              ],
-              if (scan['visionB'] != null) ...[
-                _ExpandableSection(
-                  icon: Icons.visibility_outlined,
-                  title: 'Vision B · Ollama',
-                  accent: LucidiaColors.violet,
-                  child: _agentBody(scan['visionB']),
+              if (hasVerification)
+                _TimelineNode(
+                  icon: verified ? Icons.fact_check_outlined : Icons.warning_amber_outlined,
+                  color: verified ? LucidiaColors.teal : LucidiaColors.error,
+                  isFirst: false,
+                  isLast: true,
+                  child: _timelineCard(
+                    title: verified ? 'Verification passed' : 'Verification flags',
+                    color: verified ? LucidiaColors.teal : LucidiaColors.error,
+                    child: _verificationBody(scan['verification']),
+                  ),
                 ),
-                const SizedBox(height: 12),
-              ],
             ]),
           ),
         ),
       ],
     );
+  }
+
+  // ---- Scan image + bbox overlay ----
+
+  Widget _scanImageCard(Map<String, dynamic> scan) {
+    if (_imageLoading) {
+      return Container(
+        height: 220,
+        alignment: Alignment.center,
+        decoration: lucidiaCardDecoration(),
+        child: const CircularProgressIndicator(color: LucidiaColors.teal),
+      );
+    }
+    if (_imageBytes == null) {
+      return const SizedBox.shrink();
+    }
+
+    final geminiBbox = _extractBbox(scan['visionA']);
+    final medSamBbox = _extractMedSamBbox(scan['medSam']);
+    final ratio = _imageAspectRatio ?? 1.0;
+    final showLegend = geminiBbox != null || medSamBbox != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: lucidiaCardDecoration(),
+          clipBehavior: Clip.antiAlias,
+          child: AspectRatio(
+            aspectRatio: ratio,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.memory(_imageBytes!, fit: BoxFit.contain),
+                if (medSamBbox != null && _imagePixelSize != null)
+                  CustomPaint(
+                    painter: _MedSamBoxPainter(medSamBbox, _imagePixelSize!),
+                  ),
+                if (geminiBbox != null)
+                  CustomPaint(
+                    painter: _BoundingBoxPainter(geminiBbox),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        if (showLegend) ...[
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              if (geminiBbox != null) _legendChip('Gemini estimate', LucidiaColors.violet),
+              if (geminiBbox != null && medSamBbox != null) const SizedBox(width: 12),
+              if (medSamBbox != null) _legendChip('MedSAM segmentation', LucidiaColors.teal),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _legendChip(String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            border: Border.all(color: color, width: 2),
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(color: LucidiaColors.textSecondary, fontSize: 11)),
+      ],
+    );
+  }
+
+  List<double>? _extractBbox(dynamic visionA) {
+    if (visionA == null) return null;
+    final raw = visionA['boundingBox'];
+    if (raw == null) return null;
+    try {
+      final list = List<num>.from(raw);
+      if (list.length != 4) return null;
+      return list.map((n) => n.toDouble()).toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  List<double>? _extractMedSamBbox(dynamic medSam) {
+    if (medSam == null) return null;
+    final raw = medSam['bbox'];
+    if (raw == null) return null;
+    try {
+      final list = List<num>.from(raw);
+      if (list.length != 4) return null;
+      return list.map((n) => n.toDouble()).toList();
+    } catch (_) {
+      return null;
+    }
   }
 
   // ---- Status hero ----
@@ -300,45 +451,56 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
     }
   }
 
-  // ---- Arbitration banner ----
+  // ---- Shared timeline card shell ----
 
-  Widget _arbitrationBanner(Map<String, dynamic> data) {
+  Widget _timelineCard({required String title, required Color color, required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: lucidiaCardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(fontWeight: FontWeight.w700, color: color, fontSize: 15)),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+
+  // ---- Arbitration card ----
+
+  Widget _arbitrationCard(Map<String, dynamic> data) {
     final bool agree = data['agree'] == true;
     final color = agree ? LucidiaColors.teal : LucidiaColors.violet;
     final score = (data['agreementScore'] as num?)?.toStringAsFixed(2) ?? 'N/A';
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: lucidiaCardDecoration(borderColor: color),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(agree ? Icons.handshake_outlined : Icons.compare_arrows, color: color, size: 22),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      agree ? 'Agents agree' : 'Agents disagree — review flagged',
-                      style: TextStyle(fontWeight: FontWeight.w700, color: color, fontSize: 14),
-                    ),
-                    const Spacer(),
-                    _pill('score $score', color),
-                  ],
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  agree ? 'Agents agree' : 'Agents disagree',
+                  style: TextStyle(fontWeight: FontWeight.w700, color: color, fontSize: 15),
                 ),
-                if ((data['notes'] as String?)?.isNotEmpty == true) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    data['notes'],
-                    style: const TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
-                  ),
-                ],
-              ],
-            ),
+              ),
+              _pill('score $score', color),
+            ],
           ),
+          if ((data['notes'] as String?)?.isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            Text(
+              data['notes'],
+              style: const TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
+            ),
+          ],
         ],
       ),
     );
@@ -583,84 +745,140 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
   }
 }
 
-/// Reusable collapsible section card used throughout the report view.
-class _ExpandableSection extends StatefulWidget {
+/// A single node in the vertical pipeline timeline: an icon dot connected
+/// by a line to the next node, with its content card to the right.
+/// Everything is always visible - no expand/collapse.
+class _TimelineNode extends StatelessWidget {
   final IconData icon;
-  final String title;
-  final Color accent;
+  final Color color;
+  final bool isFirst;
+  final bool isLast;
   final Widget child;
-  final bool initiallyExpanded;
 
-  const _ExpandableSection({
+  const _TimelineNode({
     required this.icon,
-    required this.title,
-    required this.accent,
+    required this.color,
+    required this.isFirst,
+    required this.isLast,
     required this.child,
-    this.initiallyExpanded = false,
   });
 
   @override
-  State<_ExpandableSection> createState() => _ExpandableSectionState();
-}
-
-class _ExpandableSectionState extends State<_ExpandableSection> {
-  late bool _expanded = widget.initiallyExpanded;
-
-  @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: lucidiaCardDecoration(),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(widget.icon, color: widget.accent, size: 20),
-                  const SizedBox(width: 12),
+          SizedBox(
+            width: 36,
+            child: Column(
+              children: [
+                Container(
+                  width: 4,
+                  height: isFirst ? 10 : 0,
+                  color: Colors.transparent,
+                ),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: color.withValues(alpha: 0.5), width: 1.5),
+                  ),
+                  child: Icon(icon, color: color, size: 17),
+                ),
+                if (!isLast)
                   Expanded(
-                    child: Text(
-                      widget.title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: widget.accent,
-                        fontSize: 15,
-                      ),
+                    child: Container(
+                      width: 2,
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      color: LucidiaColors.border,
                     ),
                   ),
-                  AnimatedRotation(
-                    turns: _expanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(Icons.keyboard_arrow_down, color: LucidiaColors.textSecondary),
-                  ),
-                ],
-              ),
+              ],
             ),
           ),
-          AnimatedCrossFade(
-            firstChild: const SizedBox(width: double.infinity),
-            secondChild: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: widget.child,
-            ),
-            crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-            firstCurve: Curves.easeOut,
-            secondCurve: Curves.easeOut,
-            sizeCurve: Curves.easeOut,
-            duration: const Duration(milliseconds: 200),
-            layoutBuilder: (top, topKey, bottom, bottomKey) => Stack(
-              alignment: Alignment.topCenter,
-              children: [
-                Positioned(key: bottomKey, child: bottom),
-                Positioned(key: topKey, child: top),
-              ],
+          const SizedBox(width: 14),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 20, top: isFirst ? 10 : 0),
+              child: child,
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+/// Draws Gemini's estimated bounding box - coordinates are on a 0-1000
+/// scale relative to image width/height, painted as a fraction of the
+/// rendered size regardless of the image's actual resolution.
+class _BoundingBoxPainter extends CustomPainter {
+  final List<double> bbox; // [x1, y1, x2, y2] on 0-1000 scale
+
+  _BoundingBoxPainter(this.bbox);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = LucidiaColors.violet
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+
+    final fillPaint = Paint()
+      ..color = LucidiaColors.violet.withValues(alpha: 0.08)
+      ..style = PaintingStyle.fill;
+
+    final rect = Rect.fromLTRB(
+      (bbox[0] / 1000) * size.width,
+      (bbox[1] / 1000) * size.height,
+      (bbox[2] / 1000) * size.width,
+      (bbox[3] / 1000) * size.height,
+    );
+
+    canvas.drawRect(rect, fillPaint);
+    canvas.drawRect(rect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BoundingBoxPainter oldDelegate) {
+    return oldDelegate.bbox != bbox;
+  }
+}
+
+/// Draws MedSAM's segmentation box - coordinates are in real pixels of the
+/// original image, so this scales by (rendered size / original pixel size)
+/// rather than the 0-1000 fraction used for Gemini's box.
+class _MedSamBoxPainter extends CustomPainter {
+  final List<double> bbox; // [x1, y1, x2, y2] in real image pixels
+  final Size originalImageSize;
+
+  _MedSamBoxPainter(this.bbox, this.originalImageSize);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scaleX = size.width / originalImageSize.width;
+    final scaleY = size.height / originalImageSize.height;
+
+    final paint = Paint()
+      ..color = LucidiaColors.teal
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+
+    final rect = Rect.fromLTRB(
+      bbox[0] * scaleX,
+      bbox[1] * scaleY,
+      bbox[2] * scaleX,
+      bbox[3] * scaleY,
+    );
+
+    canvas.drawRect(rect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MedSamBoxPainter oldDelegate) {
+    return oldDelegate.bbox != bbox || oldDelegate.originalImageSize != originalImageSize;
   }
 }

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
+import 'dart:typed_data';
 class ScanService {
   static const String baseUrl = "http://localhost:8080";
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -72,7 +72,17 @@ class ScanService {
     }
     return jsonDecode(response.body);
   }
-
+  Future<Uint8List> fetchImageBytes(String id) async {
+  final auth = await _authHeader();
+  final response = await http.get(
+    Uri.parse('$baseUrl/api/scans/$id/image'),
+    headers: {'Authorization': auth},
+  );
+  if (response.statusCode != 200) {
+    throw Exception('Failed to load image (${response.statusCode})');
+  }
+  return response.bodyBytes;
+}
   Future<void> deleteScan(String id) async {
     final auth = await _authHeader();
     final response = await http.delete(
