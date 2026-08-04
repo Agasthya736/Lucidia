@@ -3,7 +3,8 @@ import 'auth_service.dart';
 import 'register_screen.dart';
 import '../shared/lucidia_mark.dart';
 import '../shared/theme.dart';
-import '../scan/home_screen.dart';
+import '../navigation/main_shell_screen.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -35,7 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const MainShellScreen()),
         (route) => false,
     );
     } catch (e) {
@@ -122,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Color(0xFF07211F),
+                                color: Color(0xFFFFFFFF),
                               ),
                             )
                           : const Text('Log in'),

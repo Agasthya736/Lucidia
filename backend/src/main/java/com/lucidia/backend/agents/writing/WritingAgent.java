@@ -49,14 +49,18 @@ public class WritingAgent {
     description. Use general categories, not definitive disease names (e.g.
     "a malignant neoplasm" rather than a specific cancer subtype, "an
     infectious or inflammatory process" rather than naming a specific
-    pathogen). Every entry must be phrased as a possibility, never a
-    conclusion (e.g. "could represent...", "is consistent with, among other
-    possibilities..."). Do not introduce any finding or feature not already
-    stated in FINDINGS.>
+    pathogen). Do not include specific disease names anywhere in the
+    differential entry, including as parenthetical examples (e.g., do not
+    write "an infectious process (e.g., pneumonia)" - write "an infectious
+    or inflammatory process" with no named examples at all). Every entry
+    must be phrased as a possibility, never a conclusion (e.g. "could
+    represent...", "is consistent with, among other possibilities..."). Do
+    not introduce any finding or feature not already stated in FINDINGS.>
 
     Do not introduce anatomical terms, measurements, or observations that
     do not appear in the supplied reading(s) or segmentation data.
     """;
+
     private final ChatClient chatClient;
 
     public WritingAgent(ChatClient.Builder chatClientBuilder) {
@@ -82,6 +86,51 @@ public class WritingAgent {
         boolean flagged = !arbitration.available() || !arbitration.agree();
 
         return new ReportDraft(findings.trim(), impression.trim(), differential.trim(), flagged);
+    }
+
+    public ReportDraft revise(ReportDraft original, List<String> issues, VisionFindings a, VisionFindings b,
+                              ArbitrationResult arbitration, MedSamFindings medSam) {
+        String baseContext = (a != null && b != null)
+                ? buildDualPrompt(a, b, arbitration, medSam)
+                : buildSinglePrompt(a != null ? a : b, medSam);
+
+        StringBuilder issuesText = new StringBuilder();
+        if (issues != null && !issues.isEmpty()) {
+            for (String issue : issues) {
+                issuesText.append("- ").append(issue).append("\n");
+            }
+        }
+
+        String userPrompt = String.format("""
+            %s
+            ORIGINAL REPORT DRAFT:
+            FINDINGS: %s
+            IMPRESSION: %s
+            DIFFERENTIAL: %s
+
+            ISSUES TO CORRECT:
+            %s
+            Please rewrite the report in the required FINDINGS / IMPRESSION / DIFFERENTIAL format, correcting every issue listed above.
+            """,
+                baseContext,
+                original.findings(),
+                original.impression(),
+                original.differential(),
+                issuesText.toString()
+        );
+
+        String response = RetryHelper.callWithFallback(
+                List.of("default"),
+                ignored -> callModel(userPrompt),
+                3,
+                1000
+        );
+
+        String findings = extract(response, "FINDINGS:", "IMPRESSION:");
+        String impression = extract(response, "IMPRESSION:", "DIFFERENTIAL:");
+        String differential = extract(response, "DIFFERENTIAL:", null);
+
+        return new ReportDraft(findings.trim(), impression.trim(), differential.trim(), original.flaggedForReview());
     }
 
     private String callModel(String userPrompt) {

@@ -110,6 +110,18 @@ public class PipelineOrchestrator {
             warnings.add("Verifier failed: " + e.getMessage());
         }
 
+        if (verification.available() && !verification.verified()) {
+            try {
+                ReportDraft revisedReport = writingAgent.revise(report, verification.flags(), visionA, visionB, arbitration, medSamFindings);
+                VerificationResult revisedVerification = verifierAgent.verify(revisedReport, visionA, visionB, medSamFindings);
+                report = revisedReport;
+                verification = revisedVerification;
+                warnings.add("Report was automatically revised after verification flagged issues.");
+            } catch (Exception e) {
+                warnings.add("Report revision failed, showing original draft: " + e.getMessage());
+            }
+        }
+
         return new PipelineResult(visionA, visionB, medSamFindings, arbitration, report, verification, degraded, warnings);
     }
 

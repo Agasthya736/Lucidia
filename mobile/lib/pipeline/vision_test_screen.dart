@@ -102,7 +102,7 @@ class _VisionTestScreenState extends State<VisionTestScreen> {
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Color(0xFF07211F),
+                          color: Color(0xFFFFFFFF),
                         ),
                       )
                     : const Text('Pick scan & analyze'),

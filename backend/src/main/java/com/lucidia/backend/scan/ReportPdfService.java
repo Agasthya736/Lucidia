@@ -7,6 +7,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 
@@ -201,12 +203,32 @@ public class ReportPdfService {
     }
 
     /**
-     * Splits a block of prose into sentences and renders each as its own
-     * bullet point, so the PDF reads as a scannable list instead of a
-     * dense paragraph.
+     * Renders a block of text as either a numbered list (if a numbered pattern exists)
+     * or sentence-level bullet points (for plain prose).
      */
-    private void addBulletedText(Document document, String text) {
+    private void addBulletedText(Document document, String text) throws DocumentException {
         if (text == null || text.isBlank()) return;
+
+        List<NumberedItem> numberedItems = parseNumberedList(text);
+        if (!numberedItems.isEmpty()) {
+            String prefix = numberedItems.get(0).prefix();
+            if (prefix != null && !prefix.isBlank()) {
+                Paragraph prefixP = new Paragraph(prefix, BODY_FONT);
+                prefixP.setSpacingAfter(6);
+                prefixP.setKeepTogether(true);
+                document.add(prefixP);
+            }
+            for (NumberedItem item : numberedItems) {
+                Paragraph p = new Paragraph();
+                p.add(new Chunk(item.number() + ".  ", BULLET_FONT));
+                p.add(new Chunk(item.text(), BULLET_FONT));
+                p.setSpacingAfter(6);
+                p.setIndentationLeft(10);
+                p.setKeepTogether(true);
+                document.add(p);
+            }
+            return;
+        }
 
         List<String> sentences = splitIntoSentences(text);
 
@@ -219,8 +241,47 @@ public class ReportPdfService {
             bullet.add(new Chunk(trimmed, BULLET_FONT));
             bullet.setSpacingAfter(6);
             bullet.setIndentationLeft(10);
+            bullet.setKeepTogether(true);
             document.add(bullet);
         }
+    }
+
+    private record NumberedItem(String prefix, String number, String text) {}
+
+    private static final Pattern NUMBERED_ITEM_PATTERN =
+            Pattern.compile("(?:(?<=\\s)|^)(\\d+)[\\.\\)]\\s+");
+
+    private List<NumberedItem> parseNumberedList(String text) {
+        List<NumberedItem> items = new ArrayList<>();
+        Matcher matcher = NUMBERED_ITEM_PATTERN.matcher(text);
+
+        List<Integer> startIndices = new ArrayList<>();
+        List<Integer> textIndices = new ArrayList<>();
+        List<String> numbers = new ArrayList<>();
+
+        while (matcher.find()) {
+            numbers.add(matcher.group(1));
+            startIndices.add(matcher.start());
+            textIndices.add(matcher.end());
+        }
+
+        if (numbers.isEmpty()) {
+            return items;
+        }
+
+        String prefix = text.substring(0, startIndices.get(0)).trim();
+
+        for (int i = 0; i < numbers.size(); i++) {
+            int itemStart = textIndices.get(i);
+            int itemEnd = (i + 1 < numbers.size()) ? startIndices.get(i + 1) : text.length();
+
+            String itemText = text.substring(itemStart, itemEnd).trim();
+            if (!itemText.isEmpty()) {
+                items.add(new NumberedItem(i == 0 ? prefix : "", numbers.get(i), itemText));
+            }
+        }
+
+        return items;
     }
 
     private List<String> splitIntoSentences(String text) {

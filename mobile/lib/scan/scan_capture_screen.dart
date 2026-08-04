@@ -35,7 +35,7 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
     try {
       final result = await _scanService.submitScan(_selectedFile!.bytes!, _selectedFile!.name);
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
+      Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(builder: (_) => PipelineStatusScreen(scanId: result['id'])),
       );
     } catch (e) {
@@ -104,7 +104,7 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
                 child: _submitting
                     ? const SizedBox(
                         height: 20, width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF04211F)),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFFFFFF)),
                       )
                     : const Text('Submit for Analysis'),
               ),

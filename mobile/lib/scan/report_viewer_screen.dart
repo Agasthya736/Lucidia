@@ -639,7 +639,7 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                       ? const SizedBox(
                           height: 18,
                           width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF04211F)),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFFFFFF)),
                         )
                       : const Text('Sign Off'),
                 ),
