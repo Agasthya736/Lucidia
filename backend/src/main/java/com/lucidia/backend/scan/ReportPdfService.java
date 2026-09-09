@@ -7,8 +7,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 
@@ -32,40 +30,40 @@ import com.lowagie.text.pdf.draw.LineSeparator;
 public class ReportPdfService {
 
     private static final Font TITLE_FONT =
-            new Font(Font.HELVETICA, 20, Font.BOLD, Color.decode("#1A2338"));
+            new Font(Font.HELVETICA, 18, Font.BOLD, Color.decode("#0F172A"));
 
     private static final Font SUBTITLE_FONT =
-            new Font(Font.HELVETICA, 10, Font.NORMAL, Color.GRAY);
+            new Font(Font.HELVETICA, 9, Font.NORMAL, Color.GRAY);
 
     private static final Font SECTION_FONT =
-            new Font(Font.HELVETICA, 13, Font.BOLD, Color.decode("#1A2338"));
+            new Font(Font.HELVETICA, 12, Font.BOLD, Color.decode("#0F172A"));
+
+    private static final Font SUBSECTION_FONT =
+            new Font(Font.HELVETICA, 10, Font.BOLD, Color.decode("#1E293B"));
 
     private static final Font BODY_FONT =
-            new Font(Font.HELVETICA, 11, Font.NORMAL);
+            new Font(Font.HELVETICA, 10, Font.NORMAL, Color.decode("#334155"));
 
     private static final Font BULLET_FONT =
-            new Font(Font.HELVETICA, 11, Font.NORMAL, Color.decode("#2A3348"));
+            new Font(Font.HELVETICA, 10, Font.NORMAL, Color.decode("#1E293B"));
 
     private static final Font META_LABEL_FONT =
-            new Font(Font.HELVETICA, 10, Font.BOLD);
+            new Font(Font.HELVETICA, 9, Font.BOLD, Color.decode("#475569"));
 
     private static final Font META_VALUE_FONT =
-            new Font(Font.HELVETICA, 10, Font.NORMAL);
+            new Font(Font.HELVETICA, 9, Font.NORMAL, Color.decode("#0F172A"));
 
-    private static final Font WARNING_FONT =
-            new Font(Font.HELVETICA, 11, Font.BOLDITALIC,
-                    Color.decode("#B91C1C"));
+    private static final Font URGENT_FONT =
+            new Font(Font.HELVETICA, 10, Font.BOLD, Color.decode("#DC2626"));
+
+    private static final Font FOLLOW_UP_FONT =
+            new Font(Font.HELVETICA, 10, Font.BOLD, Color.decode("#D97706"));
+
+    private static final Font ROUTINE_FONT =
+            new Font(Font.HELVETICA, 10, Font.BOLD, Color.decode("#0D9488"));
 
     private static final Font SUCCESS_FONT =
-            new Font(Font.HELVETICA, 10, Font.BOLD,
-                    Color.decode("#0E7C6B"));
-
-    private static final Font DIFFERENTIAL_HEADER_FONT =
-            new Font(Font.HELVETICA, 10, Font.BOLDITALIC,
-                    Color.decode("#6D28D9"));
-
-    private static final Font DIFFERENTIAL_CAVEAT_FONT =
-            new Font(Font.HELVETICA, 8, Font.ITALIC, Color.GRAY);
+            new Font(Font.HELVETICA, 11, Font.BOLD, Color.decode("#0E7C6B"));
 
     private static final Font FOOTER_FONT =
             new Font(Font.HELVETICA, 8, Font.ITALIC, Color.GRAY);
@@ -73,8 +71,7 @@ public class ReportPdfService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public byte[] generate(Scan scan) throws IOException {
-
-        Document document = new Document(PageSize.A4, 50, 50, 50, 50);
+        Document document = new Document(PageSize.A4, 45, 45, 40, 40);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
         try {
@@ -82,11 +79,13 @@ public class ReportPdfService {
             document.open();
 
             addLetterhead(document);
-            addPatientMeta(document, scan);
+            addPatientStudyMeta(document, scan);
             addHorizontalDivider(document);
             addReportBody(document, scan);
             addHorizontalDivider(document);
-            addVerificationFooter(document, scan);
+            addTriageEvidenceSection(document, scan);
+            addHorizontalDivider(document);
+            addVerificationSection(document, scan);
             addSignatureBlock(document, scan);
 
             document.close();
@@ -98,34 +97,35 @@ public class ReportPdfService {
     }
 
     private void addLetterhead(Document document) throws DocumentException {
-        Paragraph title = new Paragraph("LUCIDIA", TITLE_FONT);
+        Paragraph title = new Paragraph("LUCIDIA \u2014 RADIOLOGY REPORT", TITLE_FONT);
         title.setAlignment(Element.ALIGN_CENTER);
         document.add(title);
 
         Paragraph subtitle = new Paragraph(
-                "AI Assisted Multi-Agent Radiology Reporting Platform",
+                "AI-Assisted Triage & Second-Read Documentation System",
                 SUBTITLE_FONT);
         subtitle.setAlignment(Element.ALIGN_CENTER);
-        subtitle.setSpacingAfter(8);
+        subtitle.setSpacingAfter(6);
         document.add(subtitle);
 
         addHorizontalDivider(document);
-        document.add(Chunk.NEWLINE);
     }
 
-    private void addPatientMeta(Document document, Scan scan) throws DocumentException {
+    private void addPatientStudyMeta(Document document, Scan scan) throws DocumentException {
         PdfPTable table = new PdfPTable(2);
         table.setWidthPercentage(100);
-        table.setSpacingAfter(15);
+        table.setSpacingAfter(10);
 
         String createdDate = scan.getCreatedAt()
                 .atZone(ZoneId.systemDefault())
                 .format(DateTimeFormatter.ofPattern("MMMM d, yyyy  h:mm a"));
 
-        addMetaRow(table, "Report ID", scan.getId().toString().substring(0, 8).toUpperCase());
-        addMetaRow(table, "Study Date", createdDate);
-        addMetaRow(table, "Image File", scan.getImageFilename());
-        addMetaRow(table, "Status", scan.getStatus().name());
+        addMetaRow(table, "Study Reference ID", scan.getId().toString().substring(0, 8).toUpperCase());
+        addMetaRow(table, "Study Date / Time", createdDate);
+        addMetaRow(table, "CT Series Modality", "Chest CT (Axial Series)");
+        addMetaRow(table, "Total Slices Analyzed", String.valueOf(scan.getSliceCount()));
+        addMetaRow(table, "Primary Image File", scan.getImageFilename());
+        addMetaRow(table, "Pipeline Escalation", scan.isEscalated() ? "Escalated to Grounded Synthesis" : "Clean Scan Auto-Summary");
 
         document.add(table);
     }
@@ -133,232 +133,175 @@ public class ReportPdfService {
     private void addMetaRow(PdfPTable table, String label, String value) {
         PdfPCell left = new PdfPCell(new Phrase(label, META_LABEL_FONT));
         left.setBorder(Rectangle.NO_BORDER);
-        left.setPaddingBottom(5);
+        left.setPaddingBottom(3);
         table.addCell(left);
 
         PdfPCell right = new PdfPCell(new Phrase(value == null ? "N/A" : value, META_VALUE_FONT));
         right.setBorder(Rectangle.NO_BORDER);
-        right.setPaddingBottom(5);
+        right.setPaddingBottom(3);
         table.addCell(right);
     }
 
     private void addHorizontalDivider(Document document) throws DocumentException {
         LineSeparator separator = new LineSeparator();
-        separator.setLineColor(Color.decode("#4FD1C5"));
+        separator.setLineColor(Color.decode("#CBD5E1"));
         document.add(new Chunk(separator));
         document.add(Chunk.NEWLINE);
     }
 
     private void addReportBody(Document document, Scan scan) throws DocumentException, IOException {
-
-        document.add(new Paragraph("FINDINGS", SECTION_FONT));
-        document.add(Chunk.NEWLINE);
-
         if (scan.getReportJson() == null || scan.getReportJson().isBlank()) {
-            document.add(new Paragraph("No report has been generated yet.", BODY_FONT));
+            document.add(new Paragraph("No report content available.", BODY_FONT));
             document.add(Chunk.NEWLINE);
             return;
         }
 
         JsonNode report = objectMapper.readTree(scan.getReportJson());
 
-        String findings = report.path("findings").asText("No findings available.");
-        String impression = report.path("impression").asText("No impression available.");
-        String differential = report.path("differential").asText("");
+        // 1. Severity Banner
+        String severity = report.path("severity").asText("ROUTINE").toUpperCase();
+        Font sevFont = switch (severity) {
+            case "URGENT" -> URGENT_FONT;
+            case "FOLLOW_UP_RECOMMENDED" -> FOLLOW_UP_FONT;
+            default -> ROUTINE_FONT;
+        };
 
-        addBulletedText(document, findings);
-        document.add(Chunk.NEWLINE);
+        Paragraph sevP = new Paragraph();
+        sevP.add(new Chunk("TRIAGE SEVERITY: ", META_LABEL_FONT));
+        sevP.add(new Chunk(severity.replace("_", " "), sevFont));
+        sevP.setSpacingAfter(8);
+        document.add(sevP);
 
-        document.add(new Paragraph("IMPRESSION", SECTION_FONT));
-        document.add(Chunk.NEWLINE);
-        addBulletedText(document, impression);
-        document.add(Chunk.NEWLINE);
+        // 2. Impression
+        document.add(new Paragraph("SUSPECTED ABNORMALITY / IMPRESSION", SECTION_FONT));
+        String impression = report.path("impression").asText("No significant abnormality detected.");
+        Paragraph impP = new Paragraph(impression, BODY_FONT);
+        impP.setSpacingAfter(10);
+        document.add(impP);
 
-        if (isDifferentialApplicable(differential)) {
-            addDifferentialSection(document, differential);
-        }
+        // 3. Clinical Findings (Region by region)
+        document.add(new Paragraph("CLINICAL FINDINGS (BY ANATOMICAL REGION)", SECTION_FONT));
+        JsonNode findingsNode = report.path("clinicalFindings");
 
-        if (report.path("flaggedForReview").asBoolean(false)) {
-            document.add(new Paragraph("\u26A0 FLAGGED FOR CLINICIAN REVIEW", WARNING_FONT));
-            document.add(Chunk.NEWLINE);
-        }
-    }
+        if (findingsNode.isArray() && findingsNode.size() > 0) {
+            for (JsonNode rf : findingsNode) {
+                String region = rf.path("region").asText("Region");
+                String status = rf.path("status").asText("NORMAL");
+                String desc = rf.path("description").asText("");
 
-    private boolean isDifferentialApplicable(String differential) {
-        if (differential == null || differential.isBlank()) return false;
-        return !differential.toLowerCase().contains("not applicable");
-    }
-
-    private void addDifferentialSection(Document document, String differential) throws DocumentException {
-        document.add(new Paragraph("AI-SUGGESTED DIFFERENTIAL \u2014 NOT A DIAGNOSIS", DIFFERENTIAL_HEADER_FONT));
-
-        Paragraph caveat = new Paragraph(
-                "General possibilities based on visual features only. Must be confirmed by a clinician.",
-                DIFFERENTIAL_CAVEAT_FONT);
-        caveat.setSpacingAfter(6);
-        document.add(caveat);
-
-        addBulletedText(document, differential);
-        document.add(Chunk.NEWLINE);
-    }
-
-    /**
-     * Renders a block of text as either a numbered list (if a numbered pattern exists)
-     * or sentence-level bullet points (for plain prose).
-     */
-    private void addBulletedText(Document document, String text) throws DocumentException {
-        if (text == null || text.isBlank()) return;
-
-        List<NumberedItem> numberedItems = parseNumberedList(text);
-        if (!numberedItems.isEmpty()) {
-            String prefix = numberedItems.get(0).prefix();
-            if (prefix != null && !prefix.isBlank()) {
-                Paragraph prefixP = new Paragraph(prefix, BODY_FONT);
-                prefixP.setSpacingAfter(6);
-                prefixP.setKeepTogether(true);
-                document.add(prefixP);
+                Paragraph regHeader = new Paragraph();
+                regHeader.add(new Chunk("• " + region + " (" + status + "): ", SUBSECTION_FONT));
+                regHeader.add(new Chunk(desc, BODY_FONT));
+                regHeader.setSpacingAfter(4);
+                regHeader.setIndentationLeft(8);
+                document.add(regHeader);
             }
-            for (NumberedItem item : numberedItems) {
-                Paragraph p = new Paragraph();
-                p.add(new Chunk(item.number() + ".  ", BULLET_FONT));
-                p.add(new Chunk(item.text(), BULLET_FONT));
-                p.setSpacingAfter(6);
-                p.setIndentationLeft(10);
-                p.setKeepTogether(true);
+        } else {
+            String rawFindings = report.path("findings").asText("");
+            if (!rawFindings.isBlank()) {
+                Paragraph p = new Paragraph(rawFindings, BODY_FONT);
+                p.setIndentationLeft(8);
                 document.add(p);
+            } else {
+                document.add(new Paragraph("Visualized thoracic anatomy unremarkable.", BODY_FONT));
             }
+        }
+        document.add(Chunk.NEWLINE);
+
+        // 4. Recommendations
+        document.add(new Paragraph("RECOMMENDATIONS", SECTION_FONT));
+        String recommendations = report.path("recommendations").asText("Routine clinical correlation.");
+        Paragraph recP = new Paragraph(recommendations, BODY_FONT);
+        recP.setSpacingAfter(8);
+        document.add(recP);
+    }
+
+    private void addTriageEvidenceSection(Document document, Scan scan) throws DocumentException, IOException {
+        document.add(new Paragraph("TRIAGE DETECTOR EVIDENCE", SECTION_FONT));
+
+        if (scan.getTriageJson() == null || scan.getTriageJson().isBlank()) {
+            document.add(new Paragraph("Triage detector telemetry unavailable.", BODY_FONT));
+            document.add(Chunk.NEWLINE);
             return;
         }
 
-        List<String> sentences = splitIntoSentences(text);
+        JsonNode triage = objectMapper.readTree(scan.getTriageJson());
+        double confidence = triage.path("overallConfidence").asDouble(0.0);
+        int abnormalCount = triage.path("abnormalSlicesCount").asInt(0);
+        int totalSlices = triage.path("totalSlices").asInt(scan.getSliceCount());
 
-        for (String sentence : sentences) {
-            String trimmed = sentence.trim();
-            if (trimmed.isEmpty()) continue;
+        Paragraph p = new Paragraph();
+        p.add(new Chunk(String.format("Detector Confidence: %.1f%%  |  Total Slices: %d  |  Abnormal Slices: %d",
+                confidence * 100.0, totalSlices, abnormalCount), META_VALUE_FONT));
+        p.setSpacingAfter(6);
+        document.add(p);
 
-            Paragraph bullet = new Paragraph();
-            bullet.add(new Chunk("\u2022  ", BULLET_FONT));
-            bullet.add(new Chunk(trimmed, BULLET_FONT));
-            bullet.setSpacingAfter(6);
-            bullet.setIndentationLeft(10);
-            bullet.setKeepTogether(true);
-            document.add(bullet);
+        String summaryEvidence = triage.path("summaryEvidence").asText("");
+        if (!summaryEvidence.isBlank()) {
+            Paragraph sumP = new Paragraph(summaryEvidence, BODY_FONT);
+            sumP.setSpacingAfter(6);
+            document.add(sumP);
         }
     }
 
-    private record NumberedItem(String prefix, String number, String text) {}
-
-    private static final Pattern NUMBERED_ITEM_PATTERN =
-            Pattern.compile("(?:(?<=\\s)|^)(\\d+)[\\.\\)]\\s+");
-
-    private List<NumberedItem> parseNumberedList(String text) {
-        List<NumberedItem> items = new ArrayList<>();
-        Matcher matcher = NUMBERED_ITEM_PATTERN.matcher(text);
-
-        List<Integer> startIndices = new ArrayList<>();
-        List<Integer> textIndices = new ArrayList<>();
-        List<String> numbers = new ArrayList<>();
-
-        while (matcher.find()) {
-            numbers.add(matcher.group(1));
-            startIndices.add(matcher.start());
-            textIndices.add(matcher.end());
-        }
-
-        if (numbers.isEmpty()) {
-            return items;
-        }
-
-        String prefix = text.substring(0, startIndices.get(0)).trim();
-
-        for (int i = 0; i < numbers.size(); i++) {
-            int itemStart = textIndices.get(i);
-            int itemEnd = (i + 1 < numbers.size()) ? startIndices.get(i + 1) : text.length();
-
-            String itemText = text.substring(itemStart, itemEnd).trim();
-            if (!itemText.isEmpty()) {
-                items.add(new NumberedItem(i == 0 ? prefix : "", numbers.get(i), itemText));
-            }
-        }
-
-        return items;
-    }
-
-    private List<String> splitIntoSentences(String text) {
-        List<String> sentences = new ArrayList<>();
-        // Split on sentence-ending punctuation followed by whitespace,
-        // keeping the punctuation attached to each sentence.
-        for (String s : text.split("(?<=[.!?])\\s+")) {
-            if (!s.isBlank()) sentences.add(s);
-        }
-        return sentences;
-    }
-
-    private void addVerificationFooter(Document document, Scan scan) throws DocumentException, IOException {
-
-        document.add(new Paragraph("VERIFICATION", SECTION_FONT));
-        document.add(Chunk.NEWLINE);
+    private void addVerificationSection(Document document, Scan scan) throws DocumentException, IOException {
+        document.add(new Paragraph("GROUNDING VERIFICATION", SECTION_FONT));
 
         if (scan.getVerificationJson() == null || scan.getVerificationJson().isBlank()) {
-            document.add(new Paragraph("Verification unavailable.", BODY_FONT));
+            document.add(new Paragraph("Verification check unavailable.", BODY_FONT));
             document.add(Chunk.NEWLINE);
             return;
         }
 
         JsonNode verification = objectMapper.readTree(scan.getVerificationJson());
-
         boolean verified = verification.path("verified").asBoolean(false);
-        String notes = verification.path("notes").asText("No verification notes.");
-        String confidence = verification.has("confidence")
-                ? verification.get("confidence").asText()
-                : "N/A";
+        String notes = verification.path("notes").asText("Verification complete.");
 
-        document.add(new Paragraph("Verified: " + (verified ? "YES" : "NO"), BODY_FONT));
-        document.add(new Paragraph("Confidence: " + confidence, BODY_FONT));
-        document.add(Chunk.NEWLINE);
-
-        document.add(new Paragraph("Notes", SECTION_FONT));
-        document.add(Chunk.NEWLINE);
-        addBulletedText(document, notes);
-
-        JsonNode flags = verification.path("flags");
-        if (flags.isArray() && flags.size() > 0) {
-            for (JsonNode flag : flags) {
-                Paragraph bullet = new Paragraph();
-                bullet.add(new Chunk("\u2022  ", BULLET_FONT));
-                bullet.add(new Chunk(flag.asText(), BULLET_FONT));
-                bullet.setSpacingAfter(6);
-                bullet.setIndentationLeft(10);
-                document.add(bullet);
-            }
-        }
-
-        document.add(Chunk.NEWLINE);
+        Paragraph vp = new Paragraph();
+        vp.add(new Chunk("Status: " + (verified ? "VERIFIED & GROUNDED" : "FLAGGED ISSUES") + "  \u2014  " + notes, BODY_FONT));
+        vp.setSpacingAfter(8);
+        document.add(vp);
     }
 
     private void addSignatureBlock(Document document, Scan scan) throws DocumentException {
-
         addHorizontalDivider(document);
 
         if (scan.getStatus() == Scan.Status.FINALIZED) {
             String finalizedDate = scan.getFinalizedAt() == null
                     ? "N/A"
                     : scan.getFinalizedAt()
-                        .atZone(ZoneId.systemDefault())
-                        .format(DateTimeFormatter.ofPattern("MMMM d, yyyy  h:mm a"));
+                    .atZone(ZoneId.systemDefault())
+                    .format(DateTimeFormatter.ofPattern("MMMM d, yyyy  h:mm a"));
 
-            document.add(new Paragraph("\u2713 Clinician Sign-off Completed", SUCCESS_FONT));
-            document.add(new Paragraph("Finalized On: " + finalizedDate, BODY_FONT));
+            String reviewer = scan.getReviewerName() != null ? scan.getReviewerName() : "Attending Clinician";
+            String credentials = scan.getReviewerCredentials() != null ? scan.getReviewerCredentials() : "MD, Radiologist";
+
+            Paragraph sigHeader = new Paragraph("MANDATORY CLINICIAN REVIEW & SIGN-OFF: COMPLETED", SUCCESS_FONT);
+            document.add(sigHeader);
+
+            PdfPTable sigTable = new PdfPTable(2);
+            sigTable.setWidthPercentage(100);
+            sigTable.setSpacingBefore(6);
+            sigTable.setSpacingAfter(10);
+
+            addMetaRow(sigTable, "Reviewing Clinician", reviewer);
+            addMetaRow(sigTable, "Credentials / License", credentials);
+            addMetaRow(sigTable, "Sign-off Timestamp", finalizedDate);
+            if (scan.getSignOffNotes() != null && !scan.getSignOffNotes().isBlank()) {
+                addMetaRow(sigTable, "Clinician Notes", scan.getSignOffNotes());
+            }
+
+            document.add(sigTable);
         } else {
-            document.add(new Paragraph("PENDING CLINICIAN SIGN-OFF", WARNING_FONT));
+            Paragraph pending = new Paragraph("PENDING CLINICIAN REVIEW AND SIGN-OFF", URGENT_FONT);
+            pending.setSpacingAfter(10);
+            document.add(pending);
         }
 
-        document.add(Chunk.NEWLINE);
-
         Paragraph disclaimer = new Paragraph(
-                "This report was generated using the Lucidia Multi-Agent AI pipeline. "
-                        + "The report is intended to assist clinicians and must not be "
-                        + "considered an autonomous medical diagnosis.",
+                "IMPORTANT CLINICAL DECISION SUPPORT NOTICE: Lucidia is an assistive documentation and second-read "
+                        + "triage tool. It does not provide autonomous diagnostic decisions. Final clinical interpretation "
+                        + "and medical responsibility remain exclusively with the licensed signing clinician.",
                 FOOTER_FONT);
         disclaimer.setAlignment(Element.ALIGN_JUSTIFIED);
         document.add(disclaimer);

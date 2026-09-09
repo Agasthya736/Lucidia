@@ -2,19 +2,14 @@ package com.lucidia.backend.orchestrator;
 
 import java.util.List;
 
-import com.lucidia.backend.agents.arbiter.ArbitrationResult;
 import com.lucidia.backend.agents.verifier.VerificationResult;
-import com.lucidia.backend.agents.vision.MedSamFindings;
-import com.lucidia.backend.agents.vision.VisionFindings;
-import com.lucidia.backend.agents.writing.ReportDraft;
+import com.lucidia.backend.synthesis.GroundedReport;
+import com.lucidia.backend.triage.AggregatedFindings;
 
 public record PipelineResult(
-        VisionFindings visionA,
-        VisionFindings visionB,
-        MedSamFindings medSamFindings,
-        ArbitrationResult arbitration,
-        ReportDraft report,
+        AggregatedFindings triage,
+        GroundedReport report,
         VerificationResult verification,
-        boolean degraded,
+        boolean isEscalated,
         List<String> warnings
 ) {}

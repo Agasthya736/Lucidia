@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ScanRepository extends JpaRepository<Scan, UUID> {
     List<Scan> findByUserIdOrderByCreatedAtDesc(UUID userId);
+    List<Scan> findByUserIdAndStudyHashAndStatus(UUID userId, String studyHash, Scan.Status status);
 }

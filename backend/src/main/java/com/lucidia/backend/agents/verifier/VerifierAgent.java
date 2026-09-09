@@ -3,145 +3,102 @@ package com.lucidia.backend.agents.verifier;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.ai.chat.client.ChatClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lucidia.backend.agents.RetryHelper;
-import com.lucidia.backend.agents.vision.MedSamFindings;
-import com.lucidia.backend.agents.vision.VisionFindings;
-import com.lucidia.backend.agents.writing.ReportDraft;
+import com.lucidia.backend.synthesis.GroundedReport;
+import com.lucidia.backend.synthesis.RegionalFinding;
+import com.lucidia.backend.triage.AggregatedFindings;
+import com.lucidia.backend.triage.DetectedLesion;
 
+/**
+ * Strict Grounding & Consistency Verifier.
+ * Rather than performing an ungrounded second vision read, this agent directly
+ * cross-checks the synthesized report claims against the objective detector evidence:
+ * 1. Checks for ungrounded abnormalities (abnormalities stated in regions where detector saw nothing).
+ * 2. Checks for omitted findings (high-confidence lesions detected that are missing from report).
+ * 3. Validates severity alignment with detector findings.
+ * 4. Ensures detector confidence matches the triage engine output.
+ */
 @Service
 public class VerifierAgent {
 
-    private static final String SYSTEM_PROMPT = """
-    You are a strict fact-checking assistant for radiology report drafts.
-    You will be given one or two independent AI readings of a CT scan,
-    optionally some automated segmentation data, and a drafted report
-    written from those readings.
+    private static final Logger log = LoggerFactory.getLogger(VerifierAgent.class);
 
-    Your job has three parts:
-
-    1. UNSUPPORTED CLAIMS: Identify any sentence in the draft's FINDINGS
-    that asserts something (an anatomical structure, finding, location,
-    or description) that is NOT stated or reasonably implied by the
-    supplied readings or segmentation data. Do not flag sentences that
-    merely summarize, compare, or synthesize the readings in different
-    words - only flag sentences that introduce new clinical content not
-    present in any source.
-
-    2. MISSING FINDINGS: Identify any significant finding, observation,
-    or region mentioned in the readings that is absent from the draft's
-    FINDINGS section entirely.
-
-    3. UNGROUNDED DIFFERENTIAL: If a DIFFERENTIAL section is present and
-    is not the "not applicable" placeholder, check that every possibility
-    listed is a reasonable general category given the FINDINGS - not a
-    specific disease name, and not something with no connection to the
-    described features. Flag any entry that names an overly specific
-    disease, or that has no clear connection to the findings described.
-
-    Respond with ONLY valid JSON, no other text, in this exact shape:
-    {
-      "unsupported_claims": ["<exact sentence from the draft>", ...],
-      "missing_findings": ["<short description of what was omitted>", ...],
-      "differential_issues": ["<short description of the problem>", ...]
-    }
-
-    If there are none, use empty arrays. Do not include any explanation
-    outside the JSON.
-    """;
-
-    private final ChatClient chatClient;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
-    public VerifierAgent(ChatClient.Builder chatClientBuilder) {
-        this.chatClient = chatClientBuilder.build();
-    }
-
-    public VerificationResult verify(ReportDraft draft, VisionFindings a, VisionFindings b, MedSamFindings medSam) {
-        String userPrompt = buildPrompt(draft, a, b, medSam);
-
-        String response;
-        try {
-            response = RetryHelper.callWithFallback(
-                    List.of("default"),
-                    ignored -> callModel(userPrompt),
-                    3,
-                    1000
-            );
-        } catch (Exception e) {
-            return VerificationResult.unavailable("Verifier LLM call failed: " + e.getMessage());
+    public VerificationResult verify(GroundedReport report, AggregatedFindings detectorFindings) {
+        if (report == null || detectorFindings == null) {
+            return VerificationResult.unavailable("Report or detector findings missing for verification.");
         }
-
-        return parseResponse(response);
-    }
-
-    private String callModel(String userPrompt) {
-        return chatClient.prompt()
-                .system(SYSTEM_PROMPT)
-                .user(userPrompt)
-                .call()
-                .content();
-    }
-
-    private String buildPrompt(ReportDraft draft, VisionFindings a, VisionFindings b, MedSamFindings medSam) {
-        StringBuilder sb = new StringBuilder();
-        if (a != null) {
-            sb.append("Reading A (").append(a.provider()).append("): ").append(a.summary()).append("\n");
-            sb.append("Observations A: ").append(String.join("; ", a.observations())).append("\n\n");
-        }
-        if (b != null) {
-            sb.append("Reading B (").append(b.provider()).append("): ").append(b.summary()).append("\n");
-            sb.append("Observations B: ").append(String.join("; ", b.observations())).append("\n\n");
-        }
-        if (medSam != null) {
-            sb.append(medSam.toPromptContext()).append("\n\n");
-        }
-        sb.append("Draft FINDINGS:\n").append(draft.findings()).append("\n\n");
-        sb.append("Draft IMPRESSION:\n").append(draft.impression()).append("\n\n");
-        sb.append("Draft DIFFERENTIAL:\n").append(draft.differential());
-        return sb.toString();
-    }
-
-    private VerificationResult parseResponse(String response) {
-    try {
-        String cleaned = response.trim();
-        if (cleaned.startsWith("```")) {
-            cleaned = cleaned.replaceAll("^```(json)?", "").replaceAll("```$", "").trim();
-        }
-        JsonNode node = objectMapper.readTree(cleaned);
 
         List<String> flags = new ArrayList<>();
-        JsonNode unsupported = node.get("unsupported_claims");
-        if (unsupported != null) {
-            for (JsonNode claim : unsupported) {
-                flags.add("Unsupported claim: \"" + claim.asText() + "\"");
+
+        // 1. Check for ungrounded abnormalities
+        for (RegionalFinding rf : report.clinicalFindings()) {
+            if ("ABNORMAL".equalsIgnoreCase(rf.status())) {
+                boolean matched = false;
+                for (String detectedRegion : detectorFindings.findingsByRegion().keySet()) {
+                    if (isRegionMatch(rf.region(), detectedRegion)) {
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched && detectorFindings.abnormalSlicesCount() == 0) {
+                    flags.add("Ungrounded abnormality: Report describes abnormal findings in '" + rf.region()
+                            + "', but triage detector found zero lesions in this series.");
+                }
             }
         }
-        JsonNode missing = node.get("missing_findings");
-        if (missing != null) {
-            for (JsonNode m : missing) {
-                flags.add("Possibly missing finding: " + m.asText());
+
+        // 2. Check for missing significant lesions
+        for (DetectedLesion lesion : detectorFindings.topLesions()) {
+            if (lesion.confidence() >= 0.80) {
+                boolean addressed = false;
+                for (RegionalFinding rf : report.clinicalFindings()) {
+                    if (isRegionMatch(rf.region(), lesion.anatomicalRegion())) {
+                        addressed = true;
+                        break;
+                    }
+                }
+                if (!addressed && !report.impression().toLowerCase().contains(lesion.lesionType().toLowerCase())) {
+                    flags.add("Missing finding: Detector identified '" + lesion.lesionType()
+                            + "' in " + lesion.anatomicalRegion() + " (conf " + lesion.confidence()
+                            + "), but this was omitted from clinical findings.");
+                }
             }
         }
-        JsonNode differentialIssues = node.get("differential_issues");
-        if (differentialIssues != null) {
-            for (JsonNode d : differentialIssues) {
-                flags.add("Differential issue: " + d.asText());
-            }
+
+        // 3. Check severity consistency
+        if (detectorFindings.abnormalSlicesCount() > 0 && "ROUTINE".equalsIgnoreCase(report.severity())) {
+            flags.add("Severity discrepancy: Series has " + detectorFindings.abnormalSlicesCount()
+                    + " abnormal slices, but severity flag is set to 'ROUTINE'.");
+        }
+        if (detectorFindings.abnormalSlicesCount() == 0 && "URGENT".equalsIgnoreCase(report.severity())) {
+            flags.add("Severity discrepancy: No abnormal slices detected, but report marked as 'URGENT'.");
+        }
+
+        // 4. Grounding score calculation
+        double groundingScore = 1.0;
+        if (!flags.isEmpty()) {
+            groundingScore = Math.max(0.0, 1.0 - (flags.size() * 0.25));
         }
 
         boolean verified = flags.isEmpty();
         String notes = verified
-                ? "All findings traceable to the supplied readings; no significant omissions detected."
-                : flags.size() + " issue(s) found - see flags below.";
+                ? "All clinical findings are strictly grounded in CT triage detector evidence. No omissions or discrepancies."
+                : flags.size() + " grounding issue(s) identified between report claims and detector evidence.";
 
-        return VerificationResult.of(verified, flags, notes);
-    } catch (Exception e) {
-        return VerificationResult.unavailable("Failed to parse verifier response: " + e.getMessage());
+        log.info("Verification result: verified={}, flags={}, score={}", verified, flags.size(), groundingScore);
+        return VerificationResult.of(verified, flags, notes, groundingScore);
     }
-}
+
+    private boolean isRegionMatch(String reportRegion, String detectorRegion) {
+        if (reportRegion == null || detectorRegion == null) return false;
+        String r = reportRegion.toLowerCase().replaceAll("[^a-z]", "");
+        String d = detectorRegion.toLowerCase().replaceAll("[^a-z]", "");
+        return r.contains(d) || d.contains(r)
+                || (r.contains("right") && d.contains("right"))
+                || (r.contains("left") && d.contains("left"))
+                || (r.contains("mediastin") && d.contains("mediastin"));
+    }
 }

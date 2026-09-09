@@ -1,163 +1,113 @@
 package com.lucidia.backend.orchestrator;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
 
-import javax.imageio.ImageIO;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.lucidia.backend.agents.AgentOutcome;
-import com.lucidia.backend.agents.arbiter.ArbiterAgent;
-import com.lucidia.backend.agents.arbiter.ArbitrationResult;
 import com.lucidia.backend.agents.verifier.VerificationResult;
 import com.lucidia.backend.agents.verifier.VerifierAgent;
-import com.lucidia.backend.agents.vision.GeminiVisionAgent;
-import com.lucidia.backend.agents.vision.MedSamClient;
-import com.lucidia.backend.agents.vision.MedSamFindings;
-import com.lucidia.backend.agents.vision.OllamaVisionAgent;
-import com.lucidia.backend.agents.vision.VisionFindings;
-import com.lucidia.backend.agents.writing.FallbackReportBuilder;
-import com.lucidia.backend.agents.writing.ReportDraft;
-import com.lucidia.backend.agents.writing.WritingAgent;
+import com.lucidia.backend.synthesis.GroundedReport;
+import com.lucidia.backend.synthesis.ReportSynthesisService;
+import com.lucidia.backend.triage.AggregatedFindings;
+import com.lucidia.backend.triage.SliceInput;
+import com.lucidia.backend.triage.TriageDetector;
 
+/**
+ * Redesigned Detector-Grounded Triage Pipeline Orchestrator.
+ * Replaces the old dual-vision-agent / Arbiter design with:
+ * 1. Triage Detector running per slice on pixels, outputting structured findings & confidence.
+ * 2. Cost-control branching: High-confidence clean scans bypass LLM synthesis completely.
+ * 3. Grounded Synthesis: Abnormal / low-confidence scans produce structured reports from detector evidence.
+ * 4. Grounding Verifier: Verifies report claims strictly against detector evidence.
+ */
 @Service
 public class PipelineOrchestrator {
 
-    private final GeminiVisionAgent geminiVisionAgent;
-    private final OllamaVisionAgent ollamaVisionAgent;
-    private final MedSamClient medSamClient;
-    private final ArbiterAgent arbiterAgent;
-    private final WritingAgent writingAgent;
+    private static final Logger log = LoggerFactory.getLogger(PipelineOrchestrator.class);
+
+    private final TriageDetector triageDetector;
+    private final ReportSynthesisService reportSynthesisService;
     private final VerifierAgent verifierAgent;
+    private final double confidenceThreshold;
 
     public PipelineOrchestrator(
-            GeminiVisionAgent geminiVisionAgent,
-            OllamaVisionAgent ollamaVisionAgent,
-            MedSamClient medSamClient,
-            ArbiterAgent arbiterAgent,
-            WritingAgent writingAgent,
-            VerifierAgent verifierAgent) {
-        this.geminiVisionAgent = geminiVisionAgent;
-        this.ollamaVisionAgent = ollamaVisionAgent;
-        this.medSamClient = medSamClient;
-        this.arbiterAgent = arbiterAgent;
-        this.writingAgent = writingAgent;
+            TriageDetector triageDetector,
+            ReportSynthesisService reportSynthesisService,
+            VerifierAgent verifierAgent,
+            @Value("${lucidia.triage.confidence-threshold:0.85}") double confidenceThreshold) {
+        this.triageDetector = triageDetector;
+        this.reportSynthesisService = reportSynthesisService;
         this.verifierAgent = verifierAgent;
+        this.confidenceThreshold = confidenceThreshold;
     }
 
+    /**
+     * Overload for single-image backwards compatibility.
+     */
     public PipelineResult run(byte[] imageBytes, String mimeType) {
+        return run(List.of(new SliceInput(0, "slice_001.jpg", imageBytes, mimeType)), null);
+    }
+
+    /**
+     * Primary entry point for multi-slice CT study pipeline execution.
+     */
+    public PipelineResult run(List<SliceInput> slices, String customApiKey) {
         List<String> warnings = new ArrayList<>();
 
-        CompletableFuture<AgentOutcome<VisionFindings>> futureA = CompletableFuture.supplyAsync(
-                () -> safeCall(() -> geminiVisionAgent.analyze(imageBytes, mimeType), "Gemini vision agent"));
-        CompletableFuture<AgentOutcome<VisionFindings>> futureB = CompletableFuture.supplyAsync(
-                () -> safeCall(() -> ollamaVisionAgent.analyze(imageBytes, mimeType), "Ollama vision agent"));
-
-        CompletableFuture.allOf(futureA, futureB).join();
-
-        AgentOutcome<VisionFindings> outcomeA = futureA.join();
-        AgentOutcome<VisionFindings> outcomeB = futureB.join();
-
-        if (!outcomeA.success() && !outcomeB.success()) {
-            throw new PipelineFailedException(
-                    "Both vision agents failed after exhausting retries - Gemini: " + outcomeA.errorMessage()
-                            + " | Ollama: " + outcomeB.errorMessage());
+        if (slices == null || slices.isEmpty()) {
+            throw new PipelineFailedException("CT study contains no slices to analyze.");
         }
 
-        VisionFindings visionA = outcomeA.success() ? outcomeA.value() : null;
-        VisionFindings visionB = outcomeB.success() ? outcomeB.value() : null;
-        boolean degraded = visionA == null || visionB == null;
+        log.info("Starting triage detector on CT series of {} slices using {}",
+                slices.size(), triageDetector.getDetectorName());
 
-        if (!outcomeA.success()) warnings.add("Gemini vision agent failed after retries: " + outcomeA.errorMessage());
-        if (!outcomeB.success()) warnings.add("Ollama vision agent failed after retries: " + outcomeB.errorMessage());
+        // 1. Run per-slice triage detector and aggregate evidence
+        AggregatedFindings triage;
+        try {
+            triage = triageDetector.analyzeSeries(slices);
+        } catch (Exception e) {
+            log.error("Triage detector execution failed: {}", e.getMessage(), e);
+            throw new PipelineFailedException("Triage detector failed: " + e.getMessage());
+        }
 
-        // MedSAM runs after vision agents, using Gemini's bbox if available
-        AgentOutcome<MedSamFindings> outcomeMedSam = safeCall(() -> runMedSam(imageBytes, visionA), "MedSAM segmentation");
-        MedSamFindings medSamFindings = outcomeMedSam.success() ? outcomeMedSam.value() : null;
-        if (!outcomeMedSam.success()) warnings.add("MedSAM segmentation failed (non-fatal): " + outcomeMedSam.errorMessage());
+        log.info("Triage complete: status={}, abnormalSlices={}, avgConfidence={}",
+                triage.overallStatus(), triage.abnormalSlicesCount(), triage.overallConfidence());
 
-        ArbitrationResult arbitration;
-        if (degraded) {
-            arbitration = ArbitrationResult.unavailable(
-                    "Consensus check skipped - only one vision reading was available.");
+        // 2. Cost-control Branching
+        boolean isClean = triage.isHighConfidenceClean(confidenceThreshold);
+        boolean isEscalated = !isClean;
+
+        GroundedReport report;
+        if (isClean) {
+            log.info("Study is HIGH-CONFIDENCE CLEAN ({}) -> Generating instant auto-summary, skipping LLM.",
+                    triage.overallConfidence());
+            report = GroundedReport.createCleanAutoSummary(triage);
         } else {
+            log.info("Study requires grounded synthesis (Status: {}, Abnormal Slices: {}) -> Escalating to synthesis provider.",
+                    triage.overallStatus(), triage.abnormalSlicesCount());
             try {
-                arbitration = arbiterAgent.reconcile(visionA, visionB);
+                report = reportSynthesisService.synthesizeReport(triage, customApiKey);
             } catch (Exception e) {
-                arbitration = ArbitrationResult.unavailable("Arbiter failed: " + e.getMessage());
-                warnings.add("Arbiter failed: " + e.getMessage());
+                log.error("Grounded synthesis failed: {}. Using fallback grounded report.", e.getMessage());
+                warnings.add("Grounded synthesis service encountered an issue; generated using deterministic engine: " + e.getMessage());
+                report = GroundedReport.createCleanAutoSummary(triage);
             }
         }
 
-        ReportDraft report;
-        try {
-            report = writingAgent.draft(visionA, visionB, arbitration, medSamFindings);
-        } catch (Exception e) {
-            warnings.add("Writing agent failed after retries, using fallback template: " + e.getMessage());
-            report = FallbackReportBuilder.build(visionA, visionB);
-        }
-
+        // 3. Grounding Verification
         VerificationResult verification;
         try {
-            verification = verifierAgent.verify(report, visionA, visionB, medSamFindings);
+            verification = verifierAgent.verify(report, triage);
         } catch (Exception e) {
-            verification = VerificationResult.unavailable("Verifier failed: " + e.getMessage());
-            warnings.add("Verifier failed: " + e.getMessage());
+            log.warn("Verifier check encountered an error: {}", e.getMessage());
+            verification = VerificationResult.unavailable("Verification check error: " + e.getMessage());
+            warnings.add("Verification non-fatal check error: " + e.getMessage());
         }
 
-        if (verification.available() && !verification.verified()) {
-            try {
-                ReportDraft revisedReport = writingAgent.revise(report, verification.flags(), visionA, visionB, arbitration, medSamFindings);
-                VerificationResult revisedVerification = verifierAgent.verify(revisedReport, visionA, visionB, medSamFindings);
-                report = revisedReport;
-                verification = revisedVerification;
-                warnings.add("Report was automatically revised after verification flagged issues.");
-            } catch (Exception e) {
-                warnings.add("Report revision failed, showing original draft: " + e.getMessage());
-            }
-        }
-
-        return new PipelineResult(visionA, visionB, medSamFindings, arbitration, report, verification, degraded, warnings);
-    }
-
-    private MedSamFindings runMedSam(byte[] imageBytes, VisionFindings visionA) {
-        try {
-            BufferedImage img = ImageIO.read(new ByteArrayInputStream(imageBytes));
-            int width = img.getWidth();
-            int height = img.getHeight();
-
-            int x1 = 0, y1 = 0, x2 = width, y2 = height;
-
-            if (visionA != null && visionA.boundingBox() != null) {
-                int[] box = visionA.boundingBox(); // 0-1000 scale from Gemini
-                x1 = scale(box[0], width);
-                y1 = scale(box[1], height);
-                x2 = scale(box[2], width);
-                y2 = scale(box[3], height);
-            }
-
-            return medSamClient.segment(imageBytes, "scan.png", x1, y1, x2, y2);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to prepare MedSAM segmentation: " + e.getMessage(), e);
-        }
-    }
-
-    private int scale(int value0to1000, int dimensionPixels) {
-        return (int) Math.round((value0to1000 / 1000.0) * dimensionPixels);
-    }
-
-    private <T> AgentOutcome<T> safeCall(Supplier<T> call, String agentName) {
-        try {
-            return AgentOutcome.ok(call.get());
-        } catch (Exception e) {
-            e.printStackTrace();
-            return AgentOutcome.failed(agentName + ": " + e.getClass().getSimpleName()
-                    + " - " + e.getMessage());
-        }
+        return new PipelineResult(triage, report, verification, isEscalated, warnings);
     }
 }

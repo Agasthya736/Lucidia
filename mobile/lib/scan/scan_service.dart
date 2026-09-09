@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
+
 class ScanService {
   static const String baseUrl = "http://localhost:8080";
+  static const String byokStorageKey = "custom_gemini_api_key";
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   Future<String> _authHeader() async {
@@ -13,28 +16,87 @@ class ScanService {
     return 'Bearer $token';
   }
 
-  Future<Map<String, dynamic>> submitScan(List<int> bytes, String filename) async {
+  Future<String?> getCustomApiKey() async {
+    return await _storage.read(key: byokStorageKey);
+  }
+
+  Future<void> setCustomApiKey(String key) async {
+    if (key.trim().isEmpty) {
+      await _storage.delete(key: byokStorageKey);
+    } else {
+      await _storage.write(key: byokStorageKey, value: key.trim());
+    }
+  }
+
+  Future<void> clearCustomApiKey() async {
+    await _storage.delete(key: byokStorageKey);
+  }
+
+  Future<Map<String, dynamic>> submitScanSeries(List<PlatformFile> files) async {
+    if (files.isEmpty) throw Exception('No images selected.');
+
     final auth = await _authHeader();
+    final customKey = await getCustomApiKey();
+
     final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/api/scans'));
     request.headers['Authorization'] = auth;
+    if (customKey != null && customKey.isNotEmpty) {
+      request.headers['X-Gemini-Api-Key'] = customKey;
+    }
 
-    String ext = filename.split('.').last.toLowerCase();
-    String subtype = switch (ext) {
-      'png' => 'png',
-      'webp' => 'webp',
-      _ => 'jpeg',
-    };
+    for (final file in files) {
+      if (file.bytes == null) continue;
+      String ext = file.name.split('.').last.toLowerCase();
+      String subtype = switch (ext) {
+        'png' => 'png',
+        'webp' => 'webp',
+        _ => 'jpeg',
+      };
 
-    request.files.add(http.MultipartFile.fromBytes(
-      'image', bytes, filename: filename, contentType: MediaType('image', subtype),
-    ));
+      request.files.add(http.MultipartFile.fromBytes(
+        'images',
+        file.bytes!,
+        filename: file.name,
+        contentType: MediaType('image', subtype),
+      ));
+    }
 
     final streamed = await request.send();
     final body = await streamed.stream.bytesToString();
+
+    if (streamed.statusCode == 429) {
+      final json = jsonDecode(body);
+      throw Exception(json['message'] ?? 'Free tier monthly scan quota reached. Add your Gemini API key in Settings.');
+    }
+
     if (streamed.statusCode != 200 && streamed.statusCode != 202) {
       throw Exception('Submit failed (${streamed.statusCode}): $body');
     }
     return jsonDecode(body);
+  }
+
+  Future<Map<String, dynamic>> submitScan(List<int> bytes, String filename) async {
+    final file = PlatformFile(name: filename, size: bytes.length, bytes: Uint8List.fromList(bytes));
+    return submitScanSeries([file]);
+  }
+
+  Future<Map<String, dynamic>> getQuota() async {
+    final auth = await _authHeader();
+    final customKey = await getCustomApiKey();
+
+    final headers = {'Authorization': auth};
+    if (customKey != null && customKey.isNotEmpty) {
+      headers['X-Gemini-Api-Key'] = customKey;
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/scans/quota'),
+      headers: headers,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load quota (${response.statusCode})');
+    }
+    return jsonDecode(response.body);
   }
 
   Future<Map<String, dynamic>> getScan(String id) async {
@@ -61,28 +123,62 @@ class ScanService {
     return List<Map<String, dynamic>>.from(jsonDecode(response.body));
   }
 
-  Future<Map<String, dynamic>> finalizeScan(String id) async {
+  Future<Map<String, dynamic>> finalizeScan({
+    required String id,
+    required String reviewerName,
+    required String reviewerCredentials,
+    String? notes,
+  }) async {
     final auth = await _authHeader();
     final response = await http.patch(
       Uri.parse('$baseUrl/api/scans/$id/finalize'),
-      headers: {'Authorization': auth},
+      headers: {
+        'Authorization': auth,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'reviewerName': reviewerName,
+        'reviewerCredentials': reviewerCredentials,
+        'notes': notes ?? '',
+      }),
     );
     if (response.statusCode != 200) {
-      throw Exception('Finalize failed (${response.statusCode})');
+      throw Exception('Finalize failed (${response.statusCode}): ${response.body}');
     }
     return jsonDecode(response.body);
   }
-  Future<Uint8List> fetchImageBytes(String id) async {
-  final auth = await _authHeader();
-  final response = await http.get(
-    Uri.parse('$baseUrl/api/scans/$id/image'),
-    headers: {'Authorization': auth},
-  );
-  if (response.statusCode != 200) {
-    throw Exception('Failed to load image (${response.statusCode})');
+
+  Future<Uint8List> fetchSliceImage(String id, int sliceIndex) async {
+    final auth = await _authHeader();
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/scans/$id/slices/$sliceIndex'),
+      headers: {'Authorization': auth},
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load slice image (${response.statusCode})');
+    }
+    return response.bodyBytes;
   }
-  return response.bodyBytes;
-}
+
+  Future<Uint8List> fetchImageBytes(String id) async {
+    return fetchSliceImage(id, 0);
+  }
+
+  Future<Uint8List> downloadReportPdf(String id) async {
+    final auth = await _authHeader();
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/scans/$id/report.pdf'),
+      headers: {'Authorization': auth},
+    );
+    if (response.statusCode == 428) {
+      throw Exception('Clinician review and sign-off is mandatory before downloading the report PDF.');
+    }
+    if (response.statusCode != 200) {
+      throw Exception('Download failed (${response.statusCode}): ${response.body}');
+    }
+    return response.bodyBytes;
+  }
+
   Future<void> deleteScan(String id) async {
     final auth = await _authHeader();
     final response = await http.delete(
