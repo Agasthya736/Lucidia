@@ -12,6 +12,7 @@ public class ScanDtos {
             String status,
             String imageFilename,
             int sliceCount,
+            String modality,
             boolean isEscalated,
             Instant createdAt
     ) {
@@ -21,6 +22,7 @@ public class ScanDtos {
                     scan.getStatus().name(),
                     scan.getImageFilename(),
                     scan.getSliceCount(),
+                    scan.getModality(),
                     scan.isEscalated(),
                     scan.getCreatedAt()
             );
@@ -33,6 +35,8 @@ public class ScanDtos {
             String imageFilename,
             int sliceCount,
             Object sliceFilenames,
+            String modality,
+            String clinicalNotes,
             boolean isEscalated,
             Object triage,
             Object report,

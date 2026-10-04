@@ -15,6 +15,9 @@ class ScanCaptureScreen extends StatefulWidget {
 class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
   final ScanService _scanService = ScanService();
   final List<PlatformFile> _selectedFiles = [];
+  final TextEditingController _notesController = TextEditingController();
+
+  String _selectedModality = 'CT_SERIES'; // 'CT_SERIES' or 'EXTERNAL_PHOTO'
   bool _submitting = false;
   String? _error;
   Map<String, dynamic>? _quota;
@@ -23,6 +26,12 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
   void initState() {
     super.initState();
     _loadQuota();
+  }
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadQuota() async {
@@ -37,7 +46,7 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
   Future<void> _pickFiles() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.image,
-      allowMultiple: true,
+      allowMultiple: _selectedModality == 'CT_SERIES',
       withData: true,
     );
     if (result == null || result.files.isEmpty) return;
@@ -74,7 +83,11 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
       _error = null;
     });
     try {
-      final result = await _scanService.submitScanSeries(_selectedFiles);
+      final result = await _scanService.submitScanSeries(
+        _selectedFiles,
+        modality: _selectedModality,
+        clinicalNotes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
+      );
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(builder: (_) => PipelineStatusScreen(scanId: result['id'])),
@@ -90,10 +103,20 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isExternal = _selectedModality == 'EXTERNAL_PHOTO';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New CT Study Series'),
+        title: Text(isExternal ? 'New External Clinical Photo' : 'New CT Study Series'),
         actions: [
+          IconButton(
+            tooltip: 'Toggle Theme',
+            icon: Icon(
+              LucidiaTheme.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+              color: LucidiaColors.teal,
+            ),
+            onPressed: () => setState(() => LucidiaTheme.toggleTheme()),
+          ),
           if (_selectedFiles.isNotEmpty)
             TextButton.icon(
               onPressed: _submitting ? null : () => setState(() => _selectedFiles.clear()),
@@ -110,54 +133,52 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
             children: [
               _buildQuotaBanner(),
               const SizedBox(height: 16),
-              _buildPickerCard(),
+              _buildModalitySelector(),
+              const SizedBox(height: 16),
+              _buildResponsibleAiCard(isExternal),
+              const SizedBox(height: 16),
+              _buildPickerCard(isExternal),
               if (_selectedFiles.isNotEmpty) ...[
                 const SizedBox(height: 20),
-                _buildSeriesHeader(),
+                _buildSeriesHeader(isExternal),
                 const SizedBox(height: 12),
                 _buildThumbnailStrip(),
               ],
+              const SizedBox(height: 16),
+              _buildClinicalNotesField(),
               if (_error != null) ...[
                 const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: LucidiaColors.error.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: LucidiaColors.error.withValues(alpha: 0.3)),
                   ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.error_outline, color: LucidiaColors.error, size: 20),
-                      const SizedBox(width: 10),
+                      const Icon(Icons.shield_outlined, color: LucidiaColors.error, size: 22),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: Text(_error!, style: const TextStyle(color: LucidiaColors.error, fontSize: 13)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Responsible AI & Validation Alert',
+                              style: TextStyle(color: LucidiaColors.error, fontSize: 13, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(_error!, style: const TextStyle(color: LucidiaColors.error, fontSize: 12, height: 1.4)),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
               ],
               const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: (_selectedFiles.isNotEmpty && !_submitting) ? _submit : null,
-                child: _submitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : Text(_selectedFiles.isEmpty
-                        ? 'Select CT Slices to Analyze'
-                        : 'Run Triage on ${_selectedFiles.length} ${_selectedFiles.length == 1 ? "Slice" : "Slices"}'),
-              ),
-              const SizedBox(height: 16),
-              const Center(
-                child: Text(
-                  'Supports axial CT scans in JPEG, PNG, or WebP. Multi-slice series recommended.',
-                  style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 11),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+              _buildSubmitButton(isExternal),
             ],
           ),
         ),
@@ -165,11 +186,119 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
     );
   }
 
+  Widget _buildModalitySelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: LucidiaColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: LucidiaColors.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _modalityTab(
+              id: 'CT_SERIES',
+              label: 'Radiology CT Scan',
+              icon: Icons.layers_outlined,
+            ),
+          ),
+          Expanded(
+            child: _modalityTab(
+              id: 'EXTERNAL_PHOTO',
+              label: 'External Clinical Photo',
+              icon: Icons.camera_alt_outlined,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _modalityTab({required String id, required String label, required IconData icon}) {
+    final selected = _selectedModality == id;
+    return GestureDetector(
+      onTap: _submitting
+          ? null
+          : () {
+              if (_selectedModality != id) {
+                setState(() {
+                  _selectedModality = id;
+                  _selectedFiles.clear();
+                  _error = null;
+                });
+              }
+            },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: selected ? LucidiaColors.surface : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+          border: selected ? Border.all(color: LucidiaColors.teal.withValues(alpha: 0.4)) : null,
+          boxShadow: selected
+              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: selected ? LucidiaColors.teal : LucidiaColors.textSecondary),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? LucidiaColors.textPrimary : LucidiaColors.textSecondary,
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResponsibleAiCard(bool isExternal) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: LucidiaColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: LucidiaColors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.verified_user_outlined, color: LucidiaColors.teal, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isExternal ? 'Responsible AI: External Photo Guidelines' : 'Responsible AI: Radiology Series Guidelines',
+                  style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isExternal
+                      ? 'Upload clinical photographs of visible external findings (skin lesions, swellings, wounds, rashes). '
+                        'Non-clinical images (memes, pets, screenshots) are automatically rejected by our safety filter. '
+                        'Please crop out non-clinical facial markers.'
+                      : 'Upload axial CT series slices. High-confidence clean scans bypass LLM synthesis to conserve resources. Clinician sign-off is required for diagnostic decisions.',
+                  style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 11, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildQuotaBanner() {
-    if (_quota == null) return const SizedBox.shrink();
-    final bool isByok = _quota!['byokActive'] == true;
-    final int remaining = _quota!['remainingThisMonth'] ?? 0;
-    final int total = _quota!['monthlyLimit'] ?? 20;
+    final int remaining = _quota?['remainingThisMonth'] ?? 20;
+    final bool isByok = _quota?['byokActive'] == true;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -177,7 +306,7 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
         color: isByok
             ? LucidiaColors.teal.withValues(alpha: 0.12)
             : (remaining <= 3 ? LucidiaColors.warning.withValues(alpha: 0.14) : LucidiaColors.surfaceElevated),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isByok
               ? LucidiaColors.teal.withValues(alpha: 0.3)
@@ -187,16 +316,16 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
       child: Row(
         children: [
           Icon(
-            isByok ? Icons.vpn_key : Icons.speed,
-            size: 18,
+            isByok ? Icons.key_outlined : Icons.speed_outlined,
+            size: 16,
             color: isByok ? LucidiaColors.teal : (remaining <= 3 ? LucidiaColors.warning : LucidiaColors.textSecondary),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               isByok
-                  ? 'Institution BYOK Active — Unlimited scans'
-                  : 'Free Tier: $remaining of $total monthly scans remaining',
+                  ? 'BYOK active \u2014 unlimited processing'
+                  : '$remaining free study evaluations remaining this month',
               style: TextStyle(
                 color: isByok
                     ? LucidiaColors.teal
@@ -221,11 +350,11 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
     );
   }
 
-  Widget _buildPickerCard() {
+  Widget _buildPickerCard(bool isExternal) {
     return GestureDetector(
       onTap: _submitting ? null : _pickFiles,
       child: Container(
-        height: _selectedFiles.isEmpty ? 220 : 120,
+        height: _selectedFiles.isEmpty ? 180 : 110,
         decoration: BoxDecoration(
           color: LucidiaColors.surfaceElevated,
           borderRadius: BorderRadius.circular(16),
@@ -239,16 +368,18 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                _selectedFiles.isNotEmpty ? Icons.add_photo_alternate : Icons.cloud_upload_outlined,
-                size: _selectedFiles.isEmpty ? 44 : 32,
+                isExternal
+                    ? (_selectedFiles.isNotEmpty ? Icons.add_a_photo : Icons.camera_alt_outlined)
+                    : (_selectedFiles.isNotEmpty ? Icons.add_photo_alternate : Icons.cloud_upload_outlined),
+                size: _selectedFiles.isEmpty ? 40 : 28,
                 color: _selectedFiles.isNotEmpty ? LucidiaColors.teal : LucidiaColors.textSecondary,
               ),
               const SizedBox(height: 10),
               Text(
                 _selectedFiles.isEmpty
-                    ? 'Tap to select CT series slices'
-                    : 'Tap to add more slices to series',
-                style: const TextStyle(
+                    ? (isExternal ? 'Tap to choose clinical photograph' : 'Tap to select CT series slices')
+                    : (isExternal ? 'Tap to replace clinical photograph' : 'Tap to add more slices to series'),
+                style: TextStyle(
                   color: LucidiaColors.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -257,9 +388,9 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
               const SizedBox(height: 4),
               Text(
                 _selectedFiles.isEmpty
-                    ? 'Select multiple slice images (axial series)'
-                    : '${_selectedFiles.length} slices currently in series',
-                style: const TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
+                    ? (isExternal ? 'Select surface photo of lesion, wound, or swelling' : 'Select multiple slice images (axial series)')
+                    : '${_selectedFiles.length} file(s) selected',
+                style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
               ),
             ],
           ),
@@ -268,17 +399,17 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
     );
   }
 
-  Widget _buildSeriesHeader() {
+  Widget _buildSeriesHeader(bool isExternal) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Row(
           children: [
-            const Icon(Icons.layers_outlined, size: 18, color: LucidiaColors.teal),
+            Icon(isExternal ? Icons.photo_outlined : Icons.layers_outlined, size: 18, color: LucidiaColors.teal),
             const SizedBox(width: 8),
             Text(
-              'Selected Series (${_selectedFiles.length} slices)',
-              style: const TextStyle(
+              isExternal ? 'Selected Photograph' : 'Selected Series (${_selectedFiles.length} slices)',
+              style: TextStyle(
                 color: LucidiaColors.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -286,17 +417,18 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
             ),
           ],
         ),
-        const Text(
-          'Reorder using arrows',
-          style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 11),
-        ),
+        if (!isExternal)
+          Text(
+            'Reorder using arrows',
+            style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 11),
+          ),
       ],
     );
   }
 
   Widget _buildThumbnailStrip() {
     return SizedBox(
-      height: 140,
+      height: 130,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _selectedFiles.length,
@@ -376,6 +508,45 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildClinicalNotesField() {
+    return TextField(
+      controller: _notesController,
+      maxLines: 2,
+      style: const TextStyle(fontSize: 13),
+      decoration: InputDecoration(
+        labelText: 'Clinical Context / Anatomical Location (Optional)',
+        hintText: _selectedModality == 'EXTERNAL_PHOTO'
+            ? 'e.g., Left forearm, 3-week onset, mildly pruritic'
+            : 'e.g., Routine screening, chronic dry cough, prior imaging comparison',
+      ),
+    );
+  }
+
+  Widget _buildSubmitButton(bool isExternal) {
+    return ElevatedButton(
+      onPressed: (_selectedFiles.isEmpty || _submitting) ? null : _submit,
+      child: _submitting
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(isExternal ? Icons.document_scanner : Icons.play_arrow_rounded, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  isExternal
+                      ? 'Analyze Clinical Photograph'
+                      : 'Run Responsible AI Analysis (${_selectedFiles.length} slices)',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ],
+            ),
     );
   }
 }

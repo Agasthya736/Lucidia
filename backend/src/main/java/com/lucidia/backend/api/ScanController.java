@@ -80,6 +80,8 @@ public class ScanController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam(value = "images", required = false) List<MultipartFile> images,
             @RequestParam(value = "image", required = false) MultipartFile singleImage,
+            @RequestParam(value = "modality", required = false, defaultValue = "CT_SERIES") String modality,
+            @RequestParam(value = "clinicalNotes", required = false) String clinicalNotes,
             @RequestHeader(value = "X-Gemini-Api-Key", required = false) String customApiKey)
             throws IOException {
 
@@ -101,7 +103,7 @@ public class ScanController {
             slices.add(new SliceInput(i, file.getOriginalFilename(), file.getBytes(), mime));
         }
 
-        Scan scan = scanService.submit(userId, slices, customApiKey);
+        Scan scan = scanService.submit(userId, slices, modality, clinicalNotes, customApiKey);
 
         return ResponseEntity
                 .accepted()
@@ -246,6 +248,15 @@ public class ScanController {
                 ));
     }
 
+    @ExceptionHandler(com.lucidia.backend.responsibleai.ResponsibleAiException.class)
+    public ResponseEntity<?> handleResponsibleAiViolation(com.lucidia.backend.responsibleai.ResponsibleAiException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of(
+                        "code", "RESPONSIBLE_AI_POLICY_VIOLATION",
+                        "message", ex.getMessage()
+                ));
+    }
+
     private ScanDetail toDetail(Scan scan) throws IOException {
         return new ScanDetail(
                 scan.getId(),
@@ -253,6 +264,8 @@ public class ScanController {
                 scan.getImageFilename(),
                 scan.getSliceCount(),
                 parseOrNull(scan.getSliceFilenamesJson()),
+                scan.getModality(),
+                scan.getClinicalNotes(),
                 scan.isEscalated(),
                 parseOrNull(scan.getTriageJson()),
                 parseOrNull(scan.getReportJson()),

@@ -41,6 +41,12 @@ public class Scan {
     @Column(name = "study_hash", length = 64)
     private String studyHash;
 
+    @Column(name = "modality", length = 64)
+    private String modality = "CT_SERIES";
+
+    @Column(name = "clinical_notes", columnDefinition = "TEXT")
+    private String clinicalNotes;
+
     @Column(name = "is_escalated", nullable = false)
     private boolean isEscalated = false;
 
@@ -119,6 +125,12 @@ public class Scan {
 
     public String getStudyHash() { return studyHash; }
     public void setStudyHash(String studyHash) { this.studyHash = studyHash; }
+
+    public String getModality() { return modality != null ? modality : "CT_SERIES"; }
+    public void setModality(String modality) { this.modality = modality; }
+
+    public String getClinicalNotes() { return clinicalNotes; }
+    public void setClinicalNotes(String clinicalNotes) { this.clinicalNotes = clinicalNotes; }
 
     public boolean isEscalated() { return isEscalated; }
     public void setEscalated(boolean escalated) { isEscalated = escalated; }

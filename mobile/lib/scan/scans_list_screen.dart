@@ -117,7 +117,7 @@ class _ScansListScreenState extends State<ScansListScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(_error!,
-                                    style: const TextStyle(color: LucidiaColors.error),
+                                    style: TextStyle(color: LucidiaColors.error),
                                     textAlign: TextAlign.center),
                                 const SizedBox(height: 12),
                                 OutlinedButton(
@@ -137,7 +137,7 @@ class _ScansListScreenState extends State<ScansListScreen> {
                                     _scans.isEmpty
                                         ? 'No scans found'
                                         : 'No scans match the selected filter',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: LucidiaColors.textSecondary,
                                       fontSize: 14,
                                     ),
@@ -154,6 +154,8 @@ class _ScansListScreenState extends State<ScansListScreen> {
                                 final status = scan['status'] as String? ?? 'UNKNOWN';
                                 final flagged = scan['flaggedForReview'] as bool? ?? false;
                                 final createdAt = DateTime.tryParse(scan['createdAt'] ?? '');
+                                final severity = scan['report'] is Map ? scan['report']['severity'] as String? : null;
+
                                 return InkWell(
                                   borderRadius: BorderRadius.circular(14),
                                   onTap: () {
@@ -169,29 +171,43 @@ class _ScansListScreenState extends State<ScansListScreen> {
                                     decoration: lucidiaCardDecoration(),
                                     child: Row(
                                       children: [
-                                        Container(
-                                          width: 10,
-                                          height: 10,
-                                          decoration: BoxDecoration(
-                                            color: _statusColor(status, flagged),
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 14),
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Text(
-                                                scan['imageFilename'] ?? 'Scan',
-                                                style: const TextStyle(
-                                                  color: LucidiaColors.textPrimary,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
                                               Row(
                                                 children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      scan['imageFilename'] ?? 'CT Series',
+                                                      style: TextStyle(
+                                                        color: AppColors.textPrimary,
+                                                        fontWeight: FontWeight.w600,
+                                                      ),
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  if (severity != null) ...[
+                                                    const SizedBox(width: 8),
+                                                    UrgencyBadge(
+                                                      level: UrgencyLevel.fromString(severity),
+                                                      compact: true,
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    width: 8,
+                                                    height: 8,
+                                                    margin: const EdgeInsets.only(right: 6),
+                                                    decoration: BoxDecoration(
+                                                      color: _statusColor(status, flagged),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                  ),
                                                   Text(
                                                     '${status[0]}${status.substring(1).toLowerCase()}',
                                                     style: TextStyle(
@@ -203,8 +219,8 @@ class _ScansListScreenState extends State<ScansListScreen> {
                                                   if (createdAt != null) ...[
                                                     Text(
                                                       ' \u00B7 ${DateFormat('MMM d, h:mm a').format(createdAt)}',
-                                                      style: const TextStyle(
-                                                        color: LucidiaColors.textSecondary,
+                                                      style: TextStyle(
+                                                        color: AppColors.textSecondary,
                                                         fontSize: 12,
                                                       ),
                                                     ),
@@ -214,9 +230,10 @@ class _ScansListScreenState extends State<ScansListScreen> {
                                             ],
                                           ),
                                         ),
-                                        const Icon(
+                                        const SizedBox(width: 8),
+                                        Icon(
                                           Icons.chevron_right,
-                                          color: LucidiaColors.textSecondary,
+                                          color: AppColors.textSecondary,
                                           size: 20,
                                         ),
                                       ],

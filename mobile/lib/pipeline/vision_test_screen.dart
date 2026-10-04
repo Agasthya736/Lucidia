@@ -154,17 +154,17 @@ class _VisionTestScreenState extends State<VisionTestScreen> {
           const SizedBox(height: 8),
           Text(
             data['summary'] ?? '',
-            style: const TextStyle(color: LucidiaColors.textPrimary),
+            style: TextStyle(color: LucidiaColors.textPrimary),
           ),
           const SizedBox(height: 8),
           ...List<String>.from(data['observations'] ?? [])
               .map((o) => Text('• $o',
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: LucidiaColors.textSecondary, fontSize: 13))),
           const SizedBox(height: 8),
           Text(
             'Region: ${data['regionDescription']} | Confidence: ${data['confidence']}',
-            style: const TextStyle(
+            style: TextStyle(
                 color: LucidiaColors.textSecondary, fontSize: 12),
           ),
         ],
@@ -202,12 +202,12 @@ class _VisionTestScreenState extends State<VisionTestScreen> {
           const SizedBox(height: 6),
           Text(
             'Agreement score: ${(data['agreementScore'] as num?)?.toStringAsFixed(2) ?? "N/A"}',
-            style: const TextStyle(color: LucidiaColors.textPrimary),
+            style: TextStyle(color: LucidiaColors.textPrimary),
           ),
           const SizedBox(height: 6),
           Text(
             data['notes'] ?? '',
-            style: const TextStyle(
+            style: TextStyle(
                 color: LucidiaColors.textSecondary, fontSize: 12),
           ),
         ],
@@ -233,22 +233,22 @@ class _VisionTestScreenState extends State<VisionTestScreen> {
               style: TextStyle(
                   fontWeight: FontWeight.w700, color: LucidiaColors.teal)),
           const SizedBox(height: 8),
-          const Text('Findings',
+          Text('Findings',
               style: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: LucidiaColors.textPrimary)),
           Text(
             data['findings'] ?? '',
-            style: const TextStyle(color: LucidiaColors.textPrimary),
+            style: TextStyle(color: LucidiaColors.textPrimary),
           ),
           const SizedBox(height: 8),
-          const Text('Impression',
+          Text('Impression',
               style: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: LucidiaColors.textPrimary)),
           Text(
             data['impression'] ?? '',
-            style: const TextStyle(color: LucidiaColors.textPrimary),
+            style: TextStyle(color: LucidiaColors.textPrimary),
           ),
           if (flagged) ...[
             const SizedBox(height: 8),
@@ -292,7 +292,7 @@ class _VisionTestScreenState extends State<VisionTestScreen> {
           const SizedBox(height: 6),
           Text(
             data['notes'] ?? '',
-            style: const TextStyle(
+            style: TextStyle(
                 color: LucidiaColors.textSecondary, fontSize: 12),
           ),
           ...flags.map((f) => Padding(

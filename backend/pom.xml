@@ -180,6 +180,16 @@
     		<artifactId>springboot4-dotenv</artifactId>
     		<version>5.1.0</version>
 		</dependency>
+		<dependency>
+			<groupId>com.google.api-client</groupId>
+			<artifactId>google-api-client</artifactId>
+			<version>2.7.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.http-client</groupId>
+			<artifactId>google-http-client-gson</artifactId>
+			<version>1.46.3</version>
+		</dependency>
 	</dependencies>
 
 	<build>

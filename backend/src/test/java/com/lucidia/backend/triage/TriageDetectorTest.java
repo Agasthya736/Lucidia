@@ -96,6 +96,40 @@ class TriageDetectorTest {
         assertFalse(agg.topLesions().isEmpty());
     }
 
+    @Test
+    void testExternalPhotoAnalysis() {
+        ExternalPhotoTriageDetector extDetector = new ExternalPhotoTriageDetector();
+        assertNotNull(extDetector.getDetectorName());
+
+        // Test with empty list
+        AggregatedFindings emptyFindings = extDetector.analyzePhotos(List.of());
+        assertNotNull(emptyFindings);
+        assertEquals(0, emptyFindings.totalSlices());
+
+        // Test with real sample photo if present on disk
+        java.io.File realPhoto = new java.io.File("data/images/eb47d6e8-9011-4ffa-aff6-8d502c3a261b_slice_0.bin");
+        if (realPhoto.exists()) {
+            try {
+                byte[] bytes = java.nio.file.Files.readAllBytes(realPhoto.toPath());
+                AggregatedFindings realFindings = extDetector.analyzePhotos(List.of(
+                        new SliceInput(0, "thumb_wart.jpg", bytes, "image/jpeg")
+                ));
+                assertNotNull(realFindings);
+                assertTrue(realFindings.totalSlices() > 0);
+                assertEquals("ABNORMAL", realFindings.overallStatus());
+                assertFalse(realFindings.topLesions().isEmpty());
+                DetectedLesion top = realFindings.topLesions().get(0);
+                System.out.println("Top lesion: " + top.lesionType() + " in " + top.anatomicalRegion() + " box: " + top.boundingBox());
+                // The bounding box must be on the hand/digit (y between 300 and 700, x between 200 and 650)
+                assertTrue(top.boundingBox().get(1) > 250, "Bounding box Y1 must not be on the top outer region");
+                assertTrue(top.boundingBox().get(0) > 150, "Bounding box X1 must be focused on digit/hand");
+                assertTrue(top.anatomicalRegion().contains("Hand") || top.anatomicalRegion().contains("Digit") || top.anatomicalRegion().contains("Periungual"));
+            } catch (IOException e) {
+                // Ignore if read failed
+            }
+        }
+    }
+
     private byte[] createSyntheticCtSlice(boolean includeLesion) throws IOException {
         int width = 256;
         int height = 256;

@@ -14,10 +14,13 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    private final GoogleAuthService googleAuthService;
+
+    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService, GoogleAuthService googleAuthService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.googleAuthService = googleAuthService;
     }
 
     @PostMapping("/register")
@@ -38,6 +41,16 @@ public class AuthController {
         }
         String token = jwtService.generateToken(user);
         return ResponseEntity.ok(new AuthResponse(token, user.getEmail(), user.getName()));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<?> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        try {
+            AuthResponse response = googleAuthService.authenticate(request.idToken());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(401).body(new ErrorResponse(e.getMessage()));
+        }
     }
 
     record ErrorResponse(String message) {}

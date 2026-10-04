@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'auth/auth_service.dart';
 import 'auth/login_screen.dart';
 import 'navigation/main_shell_screen.dart';
-import 'shared/theme.dart';
+import 'theme/lucidia_theme.dart';
 
 void main() {
   runApp(const LucidiaApp());
@@ -37,17 +37,24 @@ class _LucidiaAppState extends State<LucidiaApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Lucidia',
-      theme: buildLucidiaTheme(),
-      home: _checkingAuth
-          ? const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(color: LucidiaColors.teal),
-              ),
-            )
-          : (_isLoggedIn ? const MainShellScreen() : const LoginScreen()),
-      debugShowCheckedModeBanner: false,
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: LucidiaTheme.themeNotifier,
+      builder: (context, themeMode, _) {
+        return MaterialApp(
+          title: 'Lucidia',
+          theme: LucidiaTheme.light,
+          darkTheme: LucidiaTheme.dark,
+          themeMode: themeMode,
+          home: _checkingAuth
+              ? Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                )
+              : (_isLoggedIn ? const MainShellScreen() : const LoginScreen()),
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }

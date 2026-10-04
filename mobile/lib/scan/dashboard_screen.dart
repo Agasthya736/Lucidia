@@ -152,7 +152,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
                               'Submit New CT Scan',
                               style: TextStyle(
@@ -161,7 +161,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
                               'Upload CT scan image for multi-agent AI verification',
                               style: TextStyle(
@@ -183,7 +183,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Recent Scans',
                     style: TextStyle(
                       color: LucidiaColors.textPrimary,
@@ -214,7 +214,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(32),
                   decoration: lucidiaCardDecoration(),
-                  child: const Center(
+                  child: Center(
                     child: Text(
                       'No scans uploaded yet',
                       style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 14),
@@ -247,41 +247,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         decoration: lucidiaCardDecoration(),
                         child: Row(
                           children: [
-                            Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: _statusColor(status, flagged),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    scan['imageFilename'] ?? 'Scan',
-                                    style: const TextStyle(
-                                      color: LucidiaColors.textPrimary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          scan['imageFilename'] ?? 'CT Series',
+                                          style: TextStyle(
+                                            color: AppColors.textPrimary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (scan['report'] is Map && scan['report']['severity'] != null) ...[
+                                        const SizedBox(width: 8),
+                                        UrgencyBadge(
+                                          level: UrgencyLevel.fromString(scan['report']['severity']),
+                                          compact: true,
+                                        ),
+                                      ],
+                                    ],
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${status[0]}${status.substring(1).toLowerCase()}'
-                                    '${createdAt != null ? " \u00B7 ${DateFormat('MMM d, h:mm a').format(createdAt)}" : ""}',
-                                    style: const TextStyle(
-                                      color: LucidiaColors.textSecondary,
-                                      fontSize: 12,
-                                    ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        margin: const EdgeInsets.only(right: 6),
+                                        decoration: BoxDecoration(
+                                          color: _statusColor(status, flagged),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${status[0]}${status.substring(1).toLowerCase()}'
+                                        '${createdAt != null ? " \u00B7 ${DateFormat('MMM d, h:mm a').format(createdAt)}" : ""}',
+                                        style: TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
                             ),
-                            const Icon(
+                            const SizedBox(width: 8),
+                            Icon(
                               Icons.chevron_right,
-                              color: LucidiaColors.textSecondary,
+                              color: AppColors.textSecondary,
                               size: 20,
                             ),
                           ],
@@ -317,7 +336,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 2),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: LucidiaColors.textSecondary,
               fontSize: 11,
             ),

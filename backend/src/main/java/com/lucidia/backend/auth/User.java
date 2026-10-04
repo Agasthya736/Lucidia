@@ -17,8 +17,14 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
+
+    @Column(name = "auth_provider")
+    private String authProvider = "LOCAL";
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
 
     @Enumerated(EnumType.STRING)
     private Role role = Role.CLINICIAN;
@@ -31,15 +37,23 @@ public class User {
     }
 
     public User(String name, String email, String passwordHash) {
+        this(name, email, passwordHash, "LOCAL", null);
+    }
+
+    public User(String name, String email, String passwordHash, String authProvider, String avatarUrl) {
         this.name = name;
         this.email = email;
         this.passwordHash = passwordHash;
+        this.authProvider = authProvider != null ? authProvider : "LOCAL";
+        this.avatarUrl = avatarUrl;
     }
 
     public UUID getId() { return id; }
     public String getName() { return name; }
     public String getEmail() { return email; }
     public String getPasswordHash() { return passwordHash; }
+    public String getAuthProvider() { return authProvider; }
+    public String getAvatarUrl() { return avatarUrl; }
     public Role getRole() { return role; }
     public Instant getCreatedAt() { return createdAt; }
 }

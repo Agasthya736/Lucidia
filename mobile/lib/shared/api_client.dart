@@ -23,6 +23,20 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/auth/google'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'idToken': idToken}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      throw ApiException(_extractMessage(response.body, 'Google sign-in failed'));
+    }
+  }
+
   Future<Map<String, dynamic>> register(
       String name, String email, String password) async {
     final response = await http.post(

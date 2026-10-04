@@ -48,13 +48,14 @@ public class ScanService {
     }
 
     /**
-     * Submit a multi-slice CT study.
+     * Submit a multi-slice CT study or External Clinical Photo.
      */
-    public Scan submit(UUID userId, List<SliceInput> slices, String customApiKey) {
+    public Scan submit(UUID userId, List<SliceInput> slices, String modality, String clinicalNotes, String customApiKey) {
         if (slices == null || slices.isEmpty()) {
             throw new IllegalArgumentException("Cannot submit study with zero slices.");
         }
 
+        String effectiveModality = (modality != null && !modality.isBlank()) ? modality.toUpperCase() : "CT_SERIES";
         boolean isByok = customApiKey != null && !customApiKey.isBlank();
 
         // 1. Check & consume quota (bypassed if BYOK)
@@ -69,6 +70,9 @@ public class ScanService {
         for (SliceInput s : slices) filenames.add(s.filename());
 
         Scan scan = new Scan(userId, primaryFilename, slices.size(), studyHash);
+        scan.setModality(effectiveModality);
+        scan.setClinicalNotes(clinicalNotes);
+
         try {
             scan.setSliceFilenamesJson(objectMapper.writeValueAsString(filenames));
         } catch (Exception ignored) {}
@@ -100,9 +104,13 @@ public class ScanService {
             imageStorageService.saveSlice(scan.getId(), i, slices.get(i).bytes());
         }
 
-        auditLogService.record(userId, "SCAN_SUBMITTED", scan.getId());
-        processAsync(scan.getId(), slices, customApiKey);
+        auditLogService.record(userId, "SCAN_SUBMITTED_" + effectiveModality, scan.getId());
+        processAsync(scan.getId(), slices, effectiveModality, clinicalNotes, customApiKey);
         return scan;
+    }
+
+    public Scan submit(UUID userId, List<SliceInput> slices, String customApiKey) {
+        return submit(userId, slices, "CT_SERIES", null, customApiKey);
     }
 
     /**
@@ -110,11 +118,11 @@ public class ScanService {
      */
     public Scan submit(UUID userId, String filename, byte[] imageBytes, String mimeType) {
         SliceInput slice = new SliceInput(0, filename, imageBytes, mimeType);
-        return submit(userId, List.of(slice), null);
+        return submit(userId, List.of(slice), "CT_SERIES", null, null);
     }
 
     @Async
-    public void processAsync(UUID scanId, List<SliceInput> slices, String customApiKey) {
+    public void processAsync(UUID scanId, List<SliceInput> slices, String modality, String clinicalNotes, String customApiKey) {
         Scan scan = scanRepository.findById(scanId)
                 .orElseThrow(() -> new NoSuchElementException("Scan not found: " + scanId));
 
@@ -122,7 +130,7 @@ public class ScanService {
         scanRepository.save(scan);
 
         try {
-            PipelineResult result = orchestrator.run(slices, customApiKey);
+            PipelineResult result = orchestrator.run(slices, modality, clinicalNotes, customApiKey);
 
             scan.setTriageJson(objectMapper.writeValueAsString(result.triage()));
             scan.setReportJson(objectMapper.writeValueAsString(result.report()));
@@ -137,6 +145,10 @@ public class ScanService {
         }
 
         scanRepository.save(scan);
+    }
+
+    public void processAsync(UUID scanId, List<SliceInput> slices, String customApiKey) {
+        processAsync(scanId, slices, "CT_SERIES", null, customApiKey);
     }
 
     public Scan get(UUID scanId, UUID requestingUserId) {

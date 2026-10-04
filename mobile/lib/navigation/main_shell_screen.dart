@@ -37,7 +37,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
         children: pages,
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
             top: BorderSide(color: LucidiaColors.border, width: 1),
           ),

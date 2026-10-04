@@ -116,15 +116,25 @@ public class ReportPdfService {
         table.setWidthPercentage(100);
         table.setSpacingAfter(10);
 
-        String createdDate = scan.getCreatedAt()
+        String createdDate = scan.getCreatedAt() != null
+                ? scan.getCreatedAt()
                 .atZone(ZoneId.systemDefault())
-                .format(DateTimeFormatter.ofPattern("MMMM d, yyyy  h:mm a"));
+                .format(DateTimeFormatter.ofPattern("MMMM d, yyyy  h:mm a"))
+                : "N/A";
 
-        addMetaRow(table, "Study Reference ID", scan.getId().toString().substring(0, 8).toUpperCase());
+        String studyId = scan.getId() != null
+                ? (scan.getId().toString().length() >= 8
+                ? scan.getId().toString().substring(0, 8).toUpperCase()
+                : scan.getId().toString().toUpperCase())
+                : "UNKNOWN";
+
+        String filename = scan.getImageFilename() != null ? scan.getImageFilename() : "N/A";
+
+        addMetaRow(table, "Study Reference ID", studyId);
         addMetaRow(table, "Study Date / Time", createdDate);
         addMetaRow(table, "CT Series Modality", "Chest CT (Axial Series)");
-        addMetaRow(table, "Total Slices Analyzed", String.valueOf(scan.getSliceCount()));
-        addMetaRow(table, "Primary Image File", scan.getImageFilename());
+        addMetaRow(table, "Total Slices Analyzed", String.valueOf(Math.max(1, scan.getSliceCount())));
+        addMetaRow(table, "Primary Image File", filename);
         addMetaRow(table, "Pipeline Escalation", scan.isEscalated() ? "Escalated to Grounded Synthesis" : "Clean Scan Auto-Summary");
 
         document.add(table);
@@ -146,17 +156,21 @@ public class ReportPdfService {
         LineSeparator separator = new LineSeparator();
         separator.setLineColor(Color.decode("#CBD5E1"));
         document.add(new Chunk(separator));
-        document.add(Chunk.NEWLINE);
     }
 
     private void addReportBody(Document document, Scan scan) throws DocumentException, IOException {
         if (scan.getReportJson() == null || scan.getReportJson().isBlank()) {
             document.add(new Paragraph("No report content available.", BODY_FONT));
-            document.add(Chunk.NEWLINE);
             return;
         }
 
-        JsonNode report = objectMapper.readTree(scan.getReportJson());
+        JsonNode report;
+        try {
+            report = objectMapper.readTree(scan.getReportJson());
+        } catch (Exception e) {
+            document.add(new Paragraph("Report format unparseable: " + e.getMessage(), BODY_FONT));
+            return;
+        }
 
         // 1. Severity Banner
         String severity = report.path("severity").asText("ROUTINE").toUpperCase();
@@ -206,10 +220,11 @@ public class ReportPdfService {
                 document.add(new Paragraph("Visualized thoracic anatomy unremarkable.", BODY_FONT));
             }
         }
-        document.add(Chunk.NEWLINE);
 
         // 4. Recommendations
-        document.add(new Paragraph("RECOMMENDATIONS", SECTION_FONT));
+        Paragraph recHeader = new Paragraph("RECOMMENDATIONS", SECTION_FONT);
+        recHeader.setSpacingBefore(6);
+        document.add(recHeader);
         String recommendations = report.path("recommendations").asText("Routine clinical correlation.");
         Paragraph recP = new Paragraph(recommendations, BODY_FONT);
         recP.setSpacingAfter(8);
@@ -221,11 +236,17 @@ public class ReportPdfService {
 
         if (scan.getTriageJson() == null || scan.getTriageJson().isBlank()) {
             document.add(new Paragraph("Triage detector telemetry unavailable.", BODY_FONT));
-            document.add(Chunk.NEWLINE);
             return;
         }
 
-        JsonNode triage = objectMapper.readTree(scan.getTriageJson());
+        JsonNode triage;
+        try {
+            triage = objectMapper.readTree(scan.getTriageJson());
+        } catch (Exception e) {
+            document.add(new Paragraph("Triage telemetry data unparseable.", BODY_FONT));
+            return;
+        }
+
         double confidence = triage.path("overallConfidence").asDouble(0.0);
         int abnormalCount = triage.path("abnormalSlicesCount").asInt(0);
         int totalSlices = triage.path("totalSlices").asInt(scan.getSliceCount());
@@ -249,11 +270,17 @@ public class ReportPdfService {
 
         if (scan.getVerificationJson() == null || scan.getVerificationJson().isBlank()) {
             document.add(new Paragraph("Verification check unavailable.", BODY_FONT));
-            document.add(Chunk.NEWLINE);
             return;
         }
 
-        JsonNode verification = objectMapper.readTree(scan.getVerificationJson());
+        JsonNode verification;
+        try {
+            verification = objectMapper.readTree(scan.getVerificationJson());
+        } catch (Exception e) {
+            document.add(new Paragraph("Verification telemetry unparseable.", BODY_FONT));
+            return;
+        }
+
         boolean verified = verification.path("verified").asBoolean(false);
         String notes = verification.path("notes").asText("Verification complete.");
 
@@ -273,8 +300,12 @@ public class ReportPdfService {
                     .atZone(ZoneId.systemDefault())
                     .format(DateTimeFormatter.ofPattern("MMMM d, yyyy  h:mm a"));
 
-            String reviewer = scan.getReviewerName() != null ? scan.getReviewerName() : "Attending Clinician";
-            String credentials = scan.getReviewerCredentials() != null ? scan.getReviewerCredentials() : "MD, Radiologist";
+            String reviewer = scan.getReviewerName() != null && !scan.getReviewerName().isBlank()
+                    ? scan.getReviewerName()
+                    : "Attending Clinician";
+            String credentials = scan.getReviewerCredentials() != null && !scan.getReviewerCredentials().isBlank()
+                    ? scan.getReviewerCredentials()
+                    : "MD, Radiologist";
 
             Paragraph sigHeader = new Paragraph("MANDATORY CLINICIAN REVIEW & SIGN-OFF: COMPLETED", SUCCESS_FONT);
             document.add(sigHeader);

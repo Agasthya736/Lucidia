@@ -95,8 +95,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: LucidiaColors.surfaceElevated,
-        title: const Text('Privacy Policy & Data Handling', style: TextStyle(color: LucidiaColors.textPrimary)),
-        content: const SingleChildScrollView(
+        title: Text('Privacy Policy & Data Handling', style: TextStyle(color: LucidiaColors.textPrimary)),
+        content: SingleChildScrollView(
           child: Text(
             'Lucidia (VeriRad) Data Protection & Privacy Notice:\n\n'
             '1. Patient Data Protection: CT scan slice images processed by Lucidia are transmitted over encrypted TLS channels. '
@@ -123,14 +123,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: LucidiaColors.surfaceElevated,
-        title: const Text('Regulatory Classification & SaMD', style: TextStyle(color: LucidiaColors.textPrimary)),
-        content: const SingleChildScrollView(
+        title: Text('Regulatory Classification & SaMD', style: TextStyle(color: LucidiaColors.textPrimary)),
+        content: SingleChildScrollView(
           child: Text(
             'Software as a Medical Device (SaMD) Notice:\n\n'
-            '• Medical Device Positioning: Lucidia is designed as a second-read documentation and triage workflow assistive tool.\n\n'
-            '• Not Autonomous: The system does NOT provide autonomous diagnostic decisions. It does not replace professional radiological evaluation.\n\n'
-            '• Mandatory Clinician Sign-Off: All generated documentation requires explicit review and certification by a licensed clinician before clinical use or export.\n\n'
-            '• Intended Use: For use by licensed healthcare professionals and radiology personnel in clinical environments.',
+            'â€¢ Medical Device Positioning: Lucidia is designed as a second-read documentation and triage workflow assistive tool.\n\n'
+            'â€¢ Not Autonomous: The system does NOT provide autonomous diagnostic decisions. It does not replace professional radiological evaluation.\n\n'
+            'â€¢ Mandatory Clinician Sign-Off: All generated documentation requires explicit review and certification by a licensed clinician before clinical use or export.\n\n'
+            'â€¢ Intended Use: For use by licensed healthcare professionals and radiology personnel in clinical environments.',
             style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 13, height: 1.4),
           ),
         ),
@@ -148,7 +148,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile & Settings'),
+        title: Text('Profile & Settings'),
+        actions: [
+          IconButton(
+            tooltip: 'Toggle Light / Dark Theme',
+            icon: Icon(
+              LucidiaTheme.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+              color: LucidiaColors.teal,
+            ),
+            onPressed: () {
+              setState(() {
+                LucidiaTheme.toggleTheme();
+              });
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -157,13 +171,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildClinicianCard(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              _buildThemeCard(),
+              const SizedBox(height: 16),
               _buildQuotaCard(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildByokCard(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildSystemInfoCard(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildComplianceCard(),
               const SizedBox(height: 32),
               ElevatedButton.icon(
@@ -200,14 +216,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
                   'Clinician Session',
                   style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Licensed Medical User · Active JWT Session',
+                  'Licensed Medical User Â· Active JWT Session',
                   style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
                 ),
               ],
@@ -215,6 +231,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildThemeCard() {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: LucidiaTheme.themeNotifier,
+      builder: (context, mode, _) {
+        final isDark = mode == ThemeMode.dark;
+        return Container(
+          padding: const EdgeInsets.all(18),
+          decoration: lucidiaCardDecoration(),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                    color: LucidiaColors.teal,
+                  ),
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isDark ? 'Radiology Dark Mode' : 'Clinical Light Mode',
+                        style: TextStyle(
+                          color: LucidiaColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isDark ? 'Optimized for dim diagnostic reading rooms' : 'Crisp clinical daytime clinic theme',
+                        style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Switch.adaptive(
+                value: isDark,
+                activeTrackColor: LucidiaColors.teal,
+                onChanged: (_) {
+                  setState(() {
+                    LucidiaTheme.toggleTheme();
+                  });
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -233,7 +303,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Scan Quota & Rate Limits',
                 style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
               ),
@@ -245,7 +315,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   border: Border.all(color: isByok ? LucidiaColors.teal : LucidiaColors.border),
                 ),
                 child: Text(
-                  isByok ? 'BYOK · Unlimited' : 'Free Tier',
+                  isByok ? 'BYOK Â· Unlimited' : 'Free Tier',
                   style: TextStyle(
                     color: isByok ? LucidiaColors.teal : LucidiaColors.textSecondary,
                     fontSize: 11,
@@ -277,7 +347,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Text(
                   '$used of $total scans used this month',
-                  style: const TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
+                style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
                 ),
                 Text(
                   '$remaining remaining',
@@ -303,7 +373,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
+            children: [
               Icon(Icons.vpn_key_outlined, size: 18, color: LucidiaColors.teal),
               SizedBox(width: 8),
               Text(
@@ -313,7 +383,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Supply your personal or institution Google Gemini API key to unlock unlimited high-throughput scans. '
             'Stored securely in local Keystore, never logged on backend.',
             style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12, height: 1.4),
@@ -369,7 +439,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Architecture & Pipeline Status',
             style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
           ),
@@ -393,25 +463,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Compliance & Medical Disclaimers',
             style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.privacy_tip_outlined, color: LucidiaColors.teal),
-            title: const Text('Privacy Policy & Health Data Protection', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
-            trailing: const Icon(Icons.chevron_right, color: LucidiaColors.textSecondary),
-            onTap: _showPrivacyPolicy,
+          Material(
+            color: Colors.transparent,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.privacy_tip_outlined, color: LucidiaColors.teal),
+              title: Text('Privacy Policy & Health Data Protection', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
+              trailing: Icon(Icons.chevron_right, color: LucidiaColors.textSecondary),
+              onTap: _showPrivacyPolicy,
+            ),
           ),
           const Divider(height: 1),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.medical_services_outlined, color: LucidiaColors.teal),
-            title: const Text('SaMD Classification & Clinician Gating', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
-            trailing: const Icon(Icons.chevron_right, color: LucidiaColors.textSecondary),
-            onTap: _showRegulatoryNotice,
+          Material(
+            color: Colors.transparent,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.medical_services_outlined, color: LucidiaColors.teal),
+              title: Text('SaMD Classification & Clinician Gating', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
+              trailing: Icon(Icons.chevron_right, color: LucidiaColors.textSecondary),
+              onTap: _showRegulatoryNotice,
+            ),
           ),
         ],
       ),
@@ -423,10 +499,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Icon(icon, size: 16, color: LucidiaColors.teal),
         const SizedBox(width: 10),
-        Text(label, style: const TextStyle(color: LucidiaColors.textSecondary, fontSize: 12)),
+        Text(label, style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12)),
         const Spacer(),
-        Text(value, style: const TextStyle(color: LucidiaColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500)),
+        Text(value, style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500)),
       ],
     );
   }
 }
+
+

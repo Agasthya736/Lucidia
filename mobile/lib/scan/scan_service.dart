@@ -32,7 +32,11 @@ class ScanService {
     await _storage.delete(key: byokStorageKey);
   }
 
-  Future<Map<String, dynamic>> submitScanSeries(List<PlatformFile> files) async {
+  Future<Map<String, dynamic>> submitScanSeries(
+    List<PlatformFile> files, {
+    String modality = 'CT_SERIES',
+    String? clinicalNotes,
+  }) async {
     if (files.isEmpty) throw Exception('No images selected.');
 
     final auth = await _authHeader();
@@ -42,6 +46,11 @@ class ScanService {
     request.headers['Authorization'] = auth;
     if (customKey != null && customKey.isNotEmpty) {
       request.headers['X-Gemini-Api-Key'] = customKey;
+    }
+
+    request.fields['modality'] = modality;
+    if (clinicalNotes != null && clinicalNotes.trim().isNotEmpty) {
+      request.fields['clinicalNotes'] = clinicalNotes.trim();
     }
 
     for (final file in files) {
@@ -64,6 +73,16 @@ class ScanService {
     final streamed = await request.send();
     final body = await streamed.stream.bytesToString();
 
+    if (streamed.statusCode == 400) {
+      try {
+        final json = jsonDecode(body);
+        throw Exception(json['message'] ?? 'Responsible AI rejection: Image not suitable for clinical evaluation.');
+      } catch (e) {
+        if (e is Exception && e.toString().contains('Responsible AI')) rethrow;
+        throw Exception('Submission rejected (400): $body');
+      }
+    }
+
     if (streamed.statusCode == 429) {
       final json = jsonDecode(body);
       throw Exception(json['message'] ?? 'Free tier monthly scan quota reached. Add your Gemini API key in Settings.');
@@ -75,9 +94,9 @@ class ScanService {
     return jsonDecode(body);
   }
 
-  Future<Map<String, dynamic>> submitScan(List<int> bytes, String filename) async {
+  Future<Map<String, dynamic>> submitScan(List<int> bytes, String filename, {String modality = 'CT_SERIES', String? clinicalNotes}) async {
     final file = PlatformFile(name: filename, size: bytes.length, bytes: Uint8List.fromList(bytes));
-    return submitScanSeries([file]);
+    return submitScanSeries([file], modality: modality, clinicalNotes: clinicalNotes);
   }
 
   Future<Map<String, dynamic>> getQuota() async {

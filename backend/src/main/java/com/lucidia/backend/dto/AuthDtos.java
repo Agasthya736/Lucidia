@@ -17,5 +17,13 @@ public class AuthDtos {
             @NotBlank String password
     ) {}
 
-    public record AuthResponse(String token, String email, String name) {}
+    public record GoogleLoginRequest(
+            @NotBlank String idToken
+    ) {}
+
+    public record AuthResponse(String token, String email, String name, String avatarUrl) {
+        public AuthResponse(String token, String email, String name) {
+            this(token, email, name, null);
+        }
+    }
 }

@@ -129,7 +129,7 @@ class _PipelineStatusScreenState extends State<PipelineStatusScreen> {
         const SizedBox(height: 32),
         Text(
           activeStage.title,
-          style: const TextStyle(
+        style: TextStyle(
             color: LucidiaColors.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -139,7 +139,7 @@ class _PipelineStatusScreenState extends State<PipelineStatusScreen> {
         const SizedBox(height: 8),
         Text(
           activeStage.subtitle,
-          style: const TextStyle(color: LucidiaColors.textSecondary, fontSize: 13),
+          style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 13),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 36),
@@ -190,8 +190,8 @@ class _PipelineStatusScreenState extends State<PipelineStatusScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        const Text(
-          'Clean scans skip LLM synthesis for instant cost-efficient reporting.',
+          Text(
+          'Clean scans and clear photos skip LLM synthesis for instant cost-efficient reporting.',
           style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 11),
           textAlign: TextAlign.center,
         ),
@@ -205,7 +205,7 @@ class _PipelineStatusScreenState extends State<PipelineStatusScreen> {
       children: [
         const Icon(Icons.error_outline, color: LucidiaColors.error, size: 52),
         const SizedBox(height: 16),
-        const Text(
+          Text(
           'Analysis Failed',
           style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
         ),

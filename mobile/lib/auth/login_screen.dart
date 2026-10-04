@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'auth_service.dart';
 import 'register_screen.dart';
+import '../shared/google_mark.dart';
 import '../shared/lucidia_mark.dart';
 import '../shared/theme.dart';
 import '../navigation/main_shell_screen.dart';
@@ -19,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _authService = AuthService();
 
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   String? _errorMessage;
 
   Future<void> _handleLogin() async {
@@ -35,14 +38,49 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
       if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainShellScreen()),
         (route) => false,
-    );
+      );
     } catch (e) {
       setState(() => _errorMessage = e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleGoogleLogin({bool useDevMock = false}) async {
+    setState(() {
+      _isGoogleLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await _authService.loginWithGoogle(useDevMock: useDevMock);
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainShellScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final errorStr = e.toString();
+      setState(() => _errorMessage = errorStr);
+
+      if (kDebugMode && !useDevMock) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Google sign-in needs Google Cloud setup.'),
+            action: SnackBarAction(
+              label: 'Test Dev Mock',
+              onPressed: () => _handleGoogleLogin(useDevMock: true),
+            ),
+            duration: const Duration(seconds: 8),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGoogleLoading = false);
     }
   }
 
@@ -116,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: _isLoading ? null : _handleLogin,
+                      onPressed: _isLoading || _isGoogleLoading ? null : _handleLogin,
                       child: _isLoading
                           ? const SizedBox(
                               height: 20,
@@ -128,7 +166,49 @@ class _LoginScreenState extends State<LoginScreen> {
                             )
                           : const Text('Log in'),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(child: Divider(color: LucidiaColors.border)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'OR',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: LucidiaColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        Expanded(child: Divider(color: LucidiaColors.border)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: _isLoading || _isGoogleLoading
+                          ? null
+                          : () => _handleGoogleLogin(),
+                      icon: _isGoogleLoading
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const GoogleMark(size: 20),
+                      label: Text(
+                        _isGoogleLoading ? 'Connecting...' : 'Sign in with Google',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(color: LucidiaColors.border),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     TextButton(
                       onPressed: () {
                         Navigator.of(context).push(

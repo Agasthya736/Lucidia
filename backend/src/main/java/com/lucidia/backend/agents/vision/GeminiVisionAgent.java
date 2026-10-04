@@ -39,11 +39,10 @@ public class GeminiVisionAgent implements VisionAgent {
     SUMMARY: <one paragraph overall impression>
     OBSERVATIONS: <bullet list of discrete notable features, one per line, prefixed with "-">
     REGION: <rough anatomical location of the primary finding, or "uncertain" if unclear>
-    BBOX: <a tight bounding box around the single most significant finding, as
-    four comma-separated integers x1,y1,x2,y2 on a 0-1000 scale relative to
-    the image width and height (top-left is 0,0; bottom-right is 1000,1000).
-    If there is no single discrete finding to box (e.g. the scan is normal,
-    or the finding is diffuse/whole-organ), write "unknown" instead.>
+    BBOX: <a tight, precise bounding box containing ONLY the specific focal abnormality or lesion itself.
+    Do NOT box an entire organ, entire lung, heart, or large thoracic region. The box must strictly fit the focal
+    lesion boundary with minimal margin. If the finding is diffuse, non-focal, or normal, write "unknown".
+    Format: four comma-separated integers x1,y1,x2,y2 on a 0-1000 scale (top-left is 0,0; bottom-right is 1000,1000).>
     CONFIDENCE: <a number from 0.0 to 1.0 representing your genuine certainty>
     """;
 

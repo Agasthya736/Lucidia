@@ -73,9 +73,9 @@ class _ClinicianSignOffDialogState extends State<ClinicianSignOffDialog> {
       backgroundColor: LucidiaColors.surfaceElevated,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Row(
-        children: const [
-          Icon(Icons.verified_user, color: LucidiaColors.teal, size: 24),
-          SizedBox(width: 10),
+        children: [
+          const Icon(Icons.verified_user, color: LucidiaColors.teal, size: 24),
+          const SizedBox(width: 10),
           Text(
             'Clinician Sign-Off',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: LucidiaColors.textPrimary),
@@ -98,7 +98,7 @@ class _ClinicianSignOffDialogState extends State<ClinicianSignOffDialog> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: LucidiaColors.teal.withValues(alpha: 0.3)),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Lucidia is an assistive documentation tool, not an autonomous diagnostic system. '
                     'Documented clinician sign-off is mandatory before this report can be exported or shared.',
                     style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12, height: 1.4),
@@ -148,7 +148,7 @@ class _ClinicianSignOffDialogState extends State<ClinicianSignOffDialog> {
                           activeColor: LucidiaColors.teal,
                           onChanged: (val) => setState(() => _confirmedReview = val ?? false),
                         ),
-                        const Expanded(
+                        Expanded(
                           child: Text(
                             'I confirm that I have personally reviewed this CT series, evaluated the findings, and approved this report.',
                             style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13, height: 1.3),
