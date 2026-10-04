@@ -23,9 +23,12 @@ application-local.yml
 secrets/
 
 # --- Data (never commit patient data, even synthetic, without review) ---
+data/
 data/images/
 data/raw/
+backend/data/
 *.dcm
+*.bin
 
 # --- Flutter / mobile (populated when mobile/ is scaffolded) ---
 mobile/build/

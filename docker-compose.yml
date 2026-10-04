@@ -1,23 +1,38 @@
 version: '3.8'
 
 services:
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16
     container_name: lucidia-postgres
     environment:
       POSTGRES_DB: lucidia
       POSTGRES_USER: lucidia
-      POSTGRES_PASSWORD: lucidia_dev_password
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-lucidia_dev_password}
     ports:
       - "5433:5432"
     volumes:
       - lucidia_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lucidia"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # ── MedSAM Segmentation Sidecar (Python/FastAPI) ─────────────────────────────
   medsam-service:
     build: ./medsam-service
     container_name: lucidia-medsam
     ports:
       - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s   # model loading takes time
+    # Uncomment for GPU support (requires nvidia-container-toolkit)
     # deploy:
     #   resources:
     #     reservations:
@@ -26,5 +41,35 @@ services:
     #           count: 1
     #           capabilities: [gpu]
 
+  # ── Spring Boot Backend ───────────────────────────────────────────────────────
+  backend:
+    build: ./backend
+    container_name: lucidia-backend
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./backend/.env          # GEMINI_API_KEY, JWT_SECRET, etc.
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/lucidia?timezone=Asia/Kolkata
+      SPRING_DATASOURCE_USERNAME: lucidia
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-lucidia_dev_password}
+      LUCIDIA_MEDSAM_BASE_URL: http://medsam-service:8001
+      IMAGE_STORAGE_PATH: /data/images
+    volumes:
+      - lucidia_scan_data:/data/images
+    depends_on:
+      postgres:
+        condition: service_healthy
+      medsam-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s   # Spring + Flyway migrations take time on first boot
+
 volumes:
   lucidia_pgdata:
+  lucidia_scan_data:

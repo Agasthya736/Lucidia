@@ -1,0 +1,33 @@
+# Production overrides — activated via SPRING_PROFILES_ACTIVE=prod
+# All sensitive values are injected at runtime via Cloud Run --set-secrets / --set-env-vars
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+
+  jpa:
+    show-sql: false
+
+  ai:
+    google:
+      genai:
+        api-key: ${SPRING_AI_GOOGLE_GENAI_API_KEY}
+
+lucidia:
+  jwt:
+    secret: ${LUCIDIA_JWT_SECRET}
+    expiration-minutes: 60
+  imaging:
+    storage-path: ${IMAGE_STORAGE_PATH:/data/images}
+    encryption-key-ref: ${IMAGE_ENCRYPTION_KEY_REF}
+  medsam:
+    base-url: ${MEDSAM_BASE_URL:http://localhost:8001}
+  google:
+    client-id: ${LUCIDIA_GOOGLE_CLIENT_ID}
+
+logging:
+  level:
+    org.springframework.security: WARN
+    root: INFO
