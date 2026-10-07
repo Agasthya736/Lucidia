@@ -34,7 +34,7 @@ public class AuthController {
         }
         User user = new User(request.name(), request.email(), passwordEncoder.encode(request.password()));
         userRepository.save(user);
-        return ResponseEntity.status(201).body(new AuthResponse(null, user.getEmail(), user.getName()));
+        return ResponseEntity.status(201).body(new AuthResponse(null, user.getEmail(), user.getName(), user.getAvatarUrl()));
     }
 
     @PostMapping("/login")
@@ -44,7 +44,7 @@ public class AuthController {
             return ResponseEntity.status(401).body(new ErrorResponse("Invalid email or password"));
         }
         String token = jwtService.generateToken(user);
-        return ResponseEntity.ok(new AuthResponse(token, user.getEmail(), user.getName()));
+        return ResponseEntity.ok(new AuthResponse(token, user.getEmail(), user.getName(), user.getAvatarUrl()));
     }
 
     @PostMapping("/google")

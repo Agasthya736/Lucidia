@@ -253,7 +253,7 @@ class _VisionTestScreenState extends State<VisionTestScreen> {
           if (flagged) ...[
             const SizedBox(height: 8),
             const Text(
-              'Flagged for clinician review',
+              'Flagged for review',
               style: TextStyle(
                   color: LucidiaColors.violet, fontWeight: FontWeight.w600),
             ),

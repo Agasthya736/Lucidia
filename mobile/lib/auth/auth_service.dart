@@ -3,14 +3,17 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../shared/api_client.dart';
 
-/// Handles login/register calls, Google authentication, and secure storage of the JWT.
-/// Kept separate from the API client so screens depend on this,
-/// not on HTTP details directly.
+/// Handles login/register calls, Google authentication, and secure storage of the JWT
+/// and user profile details (name, email, avatarUrl).
 class AuthService {
   final ApiClient _api = ApiClient();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   static const _tokenKey = 'jwt_token';
+  static const _nameKey = 'user_name';
+  static const _emailKey = 'user_email';
+  static const _avatarUrlKey = 'user_avatar_url';
+
   static const String defaultServerClientId =
       '747503445476-3l387af9b2ttbeo8n0g80630dd5fo853.apps.googleusercontent.com';
 
@@ -26,13 +29,38 @@ class AuthService {
     );
   }
 
-  Future<void> login(String email, String password) async {
-    final result = await _api.login(email, password);
+  Future<void> _persistAuthData(Map<String, dynamic> result) async {
     final token = result['token'] as String?;
     if (token == null) {
       throw ApiException('No token returned from server');
     }
     await _storage.write(key: _tokenKey, value: token);
+
+    final name = result['name'] as String?;
+    if (name != null && name.isNotEmpty) {
+      await _storage.write(key: _nameKey, value: name);
+    } else {
+      await _storage.delete(key: _nameKey);
+    }
+
+    final email = result['email'] as String?;
+    if (email != null && email.isNotEmpty) {
+      await _storage.write(key: _emailKey, value: email);
+    } else {
+      await _storage.delete(key: _emailKey);
+    }
+
+    final avatarUrl = result['avatarUrl'] as String?;
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      await _storage.write(key: _avatarUrlKey, value: avatarUrl);
+    } else {
+      await _storage.delete(key: _avatarUrlKey);
+    }
+  }
+
+  Future<void> login(String email, String password) async {
+    final result = await _api.login(email, password);
+    await _persistAuthData(result);
   }
 
   Future<void> register(String name, String email, String password) async {
@@ -44,12 +72,8 @@ class AuthService {
   /// Handles both native Google Sign-In and dev fallback mode.
   Future<void> loginWithGoogle({String? serverClientId, bool useDevMock = false}) async {
     if (useDevMock) {
-      final result = await _api.loginWithGoogle('mock_demo.clinician@lucidia.health');
-      final token = result['token'] as String?;
-      if (token == null) {
-        throw ApiException('No token returned from server');
-      }
-      await _storage.write(key: _tokenKey, value: token);
+      final result = await _api.loginWithGoogle('mock_demo.user@lucidia.health');
+      await _persistAuthData(result);
       return;
     }
 
@@ -74,18 +98,45 @@ class AuthService {
       }
 
       final result = await _api.loginWithGoogle(idToken);
-      final token = result['token'] as String?;
-      if (token == null) {
-        throw ApiException('No token returned from server');
-      }
-      await _storage.write(key: _tokenKey, value: token);
+      await _persistAuthData(result);
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException(e.toString());
     }
   }
 
+  /// Fetches authenticated user info from GET /api/me and updates secure storage cache.
+  Future<Map<String, dynamic>> getMe() async {
+    final token = await getToken();
+    if (token == null) {
+      throw ApiException('Not logged in');
+    }
+    final me = await _api.getMe(token);
+
+    final name = me['name'] as String?;
+    if (name != null && name.isNotEmpty) {
+      await _storage.write(key: _nameKey, value: name);
+    }
+
+    final email = me['email'] as String?;
+    if (email != null && email.isNotEmpty) {
+      await _storage.write(key: _emailKey, value: email);
+    }
+
+    final avatarUrl = me['avatarUrl'] as String?;
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      await _storage.write(key: _avatarUrlKey, value: avatarUrl);
+    } else {
+      await _storage.delete(key: _avatarUrlKey);
+    }
+
+    return me;
+  }
+
   Future<String?> getToken() => _storage.read(key: _tokenKey);
+  Future<String?> getName() => _storage.read(key: _nameKey);
+  Future<String?> getEmail() => _storage.read(key: _emailKey);
+  Future<String?> getAvatarUrl() => _storage.read(key: _avatarUrlKey);
 
   Future<void> logout() async {
     try {
@@ -95,6 +146,9 @@ class AuthService {
       }
     } catch (_) {}
     await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _nameKey);
+    await _storage.delete(key: _emailKey);
+    await _storage.delete(key: _avatarUrlKey);
   }
 
   Future<bool> isLoggedIn() async {

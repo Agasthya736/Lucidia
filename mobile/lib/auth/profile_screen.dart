@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../shared/theme.dart';
-import '../shared/lucidia_mark.dart';
 import 'auth_service.dart';
 import 'login_screen.dart';
 import '../scan/scan_service.dart';
@@ -22,11 +21,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loggingOut = false;
   bool _hasCustomKey = false;
 
+  bool _loadingProfile = true;
+  String? _profileError;
+  Map<String, dynamic>? _userProfile;
+
   Map<String, dynamic>? _quota;
 
   @override
   void initState() {
     super.initState();
+    _loadProfile();
     _loadSettings();
   }
 
@@ -34,6 +38,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _apiKeyController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _loadingProfile = true;
+      _profileError = null;
+    });
+
+    try {
+      final me = await _authService.getMe();
+      if (mounted) {
+        setState(() {
+          _userProfile = me;
+          _loadingProfile = false;
+        });
+      }
+    } catch (e) {
+      final cachedName = await _authService.getName();
+      final cachedEmail = await _authService.getEmail();
+      final cachedAvatar = await _authService.getAvatarUrl();
+      if (mounted) {
+        setState(() {
+          if (cachedName != null || cachedEmail != null) {
+            _userProfile = {
+              'name': cachedName ?? 'User',
+              'email': cachedEmail ?? '',
+              'avatarUrl': cachedAvatar,
+            };
+          }
+          _profileError = e.toString().replaceFirst('ApiException: ', '');
+          _loadingProfile = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -103,7 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             'Protected Health Information (PHI) is automatically stripped or de-identified.\n\n'
             '2. BYOK Privacy: When Bring-Your-Own-Key (BYOK) mode is active, your Gemini API key is stored locally in the hardware-backed '
             'Android Keystore / iOS Keychain. It is never logged or stored in backend logs.\n\n'
-            '3. Data Retention: Image files are stored temporarily for report generation and clinician sign-off, and can be permanently deleted at any time.\n\n'
+            '3. Data Retention: Image files are stored temporarily for report generation and sign-off, and can be permanently deleted at any time.\n\n'
             '4. Zero Third-Party Monetization: Health data is never sold, leased, or used for third-party model training.',
             style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 13, height: 1.4),
           ),
@@ -127,10 +165,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: SingleChildScrollView(
           child: Text(
             'Software as a Medical Device (SaMD) Notice:\n\n'
-            'â€¢ Medical Device Positioning: Lucidia is designed as a second-read documentation and triage workflow assistive tool.\n\n'
-            'â€¢ Not Autonomous: The system does NOT provide autonomous diagnostic decisions. It does not replace professional radiological evaluation.\n\n'
-            'â€¢ Mandatory Clinician Sign-Off: All generated documentation requires explicit review and certification by a licensed clinician before clinical use or export.\n\n'
-            'â€¢ Intended Use: For use by licensed healthcare professionals and radiology personnel in clinical environments.',
+            '• Medical Device Positioning: Lucidia is designed as a second-read documentation and triage workflow assistive tool.\n\n'
+            '• Not Autonomous: The system does NOT provide autonomous diagnostic decisions. It does not replace professional radiological evaluation.\n\n'
+            '• Mandatory Sign-Off: All generated documentation requires explicit review and certification before clinical use or export.\n\n'
+            '• Intended Use: For use in medical documentation and imaging workflows.',
             style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 13, height: 1.4),
           ),
         ),
@@ -148,7 +186,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Profile & Settings'),
+        title: const Text('Profile & Settings'),
         actions: [
           IconButton(
             tooltip: 'Toggle Light / Dark Theme',
@@ -170,7 +208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildClinicianCard(),
+              _buildUserCard(),
               const SizedBox(height: 16),
               _buildThemeCard(),
               const SizedBox(height: 16),
@@ -205,31 +243,147 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildClinicianCard() {
+  Widget _buildUserCard() {
+    if (_loadingProfile && _userProfile == null) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: lucidiaCardDecoration(),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(strokeWidth: 2, color: LucidiaColors.teal),
+              const SizedBox(height: 12),
+              Text(
+                'Loading profile...',
+                style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_profileError != null && _userProfile == null) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: lucidiaCardDecoration(),
+        child: Column(
+          children: [
+            const Icon(Icons.error_outline, color: LucidiaColors.error, size: 36),
+            const SizedBox(height: 10),
+            Text(
+              'Failed to load profile',
+              style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _profileError!,
+              style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: _loadProfile,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: LucidiaColors.teal,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final name = (_userProfile?['name'] as String?)?.trim();
+    final displayName = (name != null && name.isNotEmpty) ? name : 'User';
+    final email = (_userProfile?['email'] as String?) ?? '';
+    final avatarUrl = _userProfile?['avatarUrl'] as String?;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: lucidiaCardDecoration(),
       child: Row(
         children: [
-          const LucidiaMark(size: 44),
+          _buildAvatar(displayName, avatarUrl),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Clinician Session',
-                  style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                  displayName,
+                  style: TextStyle(
+                    color: LucidiaColors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  'Licensed Medical User Â· Active JWT Session',
-                  style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
-                ),
+                if (email.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    email,
+                    style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 13),
+                  ),
+                ],
+                if (_loadingProfile) ...[
+                  const SizedBox(height: 4),
+                  const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(strokeWidth: 1.5, color: LucidiaColors.teal),
+                  ),
+                ],
               ],
             ),
           ),
+          if (_profileError != null)
+            IconButton(
+              icon: const Icon(Icons.refresh, color: LucidiaColors.warning, size: 20),
+              tooltip: 'Retry loading profile',
+              onPressed: _loadProfile,
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar(String name, String? avatarUrl) {
+    if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
+      return CircleAvatar(
+        radius: 26,
+        backgroundColor: LucidiaColors.surface,
+        backgroundImage: NetworkImage(avatarUrl),
+        onBackgroundImageError: (_, __) {},
+        child: avatarUrl.isEmpty
+            ? Text(
+                name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: LucidiaColors.teal, fontSize: 18),
+              )
+            : null,
+      );
+    }
+
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: LucidiaColors.teal.withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+        border: Border.all(color: LucidiaColors.teal.withValues(alpha: 0.4), width: 1.5),
+      ),
+      child: Center(
+        child: Text(
+          initial,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: LucidiaColors.teal,
+          ),
+        ),
       ),
     );
   }
@@ -265,7 +419,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        isDark ? 'Optimized for dim diagnostic reading rooms' : 'Crisp clinical daytime clinic theme',
+                        isDark ? 'Optimized for dim diagnostic reading rooms' : 'Crisp daytime theme',
                         style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 11),
                       ),
                     ],
@@ -315,7 +469,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   border: Border.all(color: isByok ? LucidiaColors.teal : LucidiaColors.border),
                 ),
                 child: Text(
-                  isByok ? 'BYOK Â· Unlimited' : 'Free Tier',
+                  isByok ? 'BYOK · Unlimited' : 'Free Tier',
                   style: TextStyle(
                     color: isByok ? LucidiaColors.teal : LucidiaColors.textSecondary,
                     fontSize: 11,
@@ -328,7 +482,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 12),
           if (isByok)
             const Text(
-              'Your institution API key is active. Scan limits and rate constraints are waived.',
+              'Your custom API key is active. Scan limits and rate constraints are waived.',
               style: TextStyle(color: LucidiaColors.teal, fontSize: 12),
             )
           else ...[
@@ -347,7 +501,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Text(
                   '$used of $total scans used this month',
-                style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
+                  style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
                 ),
                 Text(
                   '$remaining remaining',
@@ -484,7 +638,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.medical_services_outlined, color: LucidiaColors.teal),
-              title: Text('SaMD Classification & Clinician Gating', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
+              title: Text('SaMD Classification & Review Notice', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
               trailing: Icon(Icons.chevron_right, color: LucidiaColors.textSecondary),
               onTap: _showRegulatoryNotice,
             ),
@@ -506,5 +660,3 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-
-

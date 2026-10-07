@@ -285,7 +285,7 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
                       ? 'Upload clinical photographs of visible external findings (skin lesions, swellings, wounds, rashes). '
                         'Non-clinical images (memes, pets, screenshots) are automatically rejected by our safety filter. '
                         'Please crop out non-clinical facial markers.'
-                      : 'Upload axial CT series slices. High-confidence clean scans bypass LLM synthesis to conserve resources. Clinician sign-off is required for diagnostic decisions.',
+                      : 'Upload axial CT series slices. High-confidence clean scans bypass LLM synthesis to conserve resources. Professional review is required for diagnostic decisions.',
                   style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 11, height: 1.4),
                 ),
               ],

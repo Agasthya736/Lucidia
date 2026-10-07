@@ -336,7 +336,7 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
       case UrgencyLevel.followUpRecommended:
         headline = 'ðŸ””  Follow-Up Recommended';
         subtext = isExternal
-            ? 'A feature was noted that should be monitored or reviewed by a clinician at your next appointment.'
+            ? 'A feature was noted that should be monitored or reviewed at your next appointment.'
             : 'A finding was noted on this scan. Interval monitoring or specialist correlation is advised.';
         break;
       case UrgencyLevel.routine:

@@ -77,7 +77,7 @@ class _ClinicianSignOffDialogState extends State<ClinicianSignOffDialog> {
           const Icon(Icons.verified_user, color: LucidiaColors.teal, size: 24),
           const SizedBox(width: 10),
           Text(
-            'Clinician Sign-Off',
+            'Report Sign-Off',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: LucidiaColors.textPrimary),
           ),
         ],
@@ -100,7 +100,7 @@ class _ClinicianSignOffDialogState extends State<ClinicianSignOffDialog> {
                   ),
                   child: Text(
                     'Lucidia is an assistive documentation tool, not an autonomous diagnostic system. '
-                    'Documented clinician sign-off is mandatory before this report can be exported or shared.',
+                    'Documented sign-off is mandatory before this report can be exported or shared.',
                     style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12, height: 1.4),
                   ),
                 ),
@@ -108,11 +108,11 @@ class _ClinicianSignOffDialogState extends State<ClinicianSignOffDialog> {
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Clinician Full Name *',
+                    labelText: 'Full Name *',
                     hintText: 'e.g. Dr. Sarah Jenkins, MD',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Clinician name is required' : null,
+                  validator: (val) => val == null || val.trim().isEmpty ? 'Name is required' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(

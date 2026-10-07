@@ -52,6 +52,22 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> getMe(String token) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/me'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      throw ApiException(_extractMessage(response.body, 'Failed to fetch user profile'));
+    }
+  }
+
   String _extractMessage(String body, String fallback) {
     try {
       final decoded = jsonDecode(body);
