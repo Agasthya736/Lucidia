@@ -6,6 +6,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Controller handling user registration, local authentication, and Google OAuth sign-in.
+ * All authenticated users operate with uniform clinician-level access without role hierarchies.
+ */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {

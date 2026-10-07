@@ -14,6 +14,11 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 
+/**
+ * Service for authenticating users via Google OAuth 2.0 ID tokens.
+ * Creates or retrieves user records without role distinctions, issuing standard
+ * JWTs with clinician-level platform access.
+ */
 @Service
 public class GoogleAuthService {
 

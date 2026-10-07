@@ -1,6 +1,6 @@
 package com.lucidia.backend.config;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.context.annotation.Bean;
@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -31,7 +32,7 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**", "/api/test/**").permitAll()
-                .requestMatchers("/api/scans/**").hasAnyRole("CLINICIAN", "ADMIN")
+                .requestMatchers("/api/scans/**").hasRole("CLINICIAN")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
@@ -51,16 +52,23 @@ public class SecurityConfig {
         return resolver;
     }
 
-    // Maps your JWT "role": "CLINICIAN" claim to Spring's "ROLE_CLINICIAN"
+    // Grants every authenticated user the fixed authority ROLE_CLINICIAN.
+    // Legacy tokens containing a role claim continue to work seamlessly.
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+            List<GrantedAuthority> authorities = new ArrayList<>();
+            authorities.add(new SimpleGrantedAuthority("ROLE_CLINICIAN"));
+
             String role = jwt.getClaimAsString("role");
             if (role != null && !role.isBlank()) {
-                return List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                String roleAuthority = "ROLE_" + role.trim();
+                if (!"ROLE_CLINICIAN".equalsIgnoreCase(roleAuthority)) {
+                    authorities.add(new SimpleGrantedAuthority(roleAuthority));
+                }
             }
-            return Collections.emptyList();
+            return authorities;
         });
         return converter;
     }

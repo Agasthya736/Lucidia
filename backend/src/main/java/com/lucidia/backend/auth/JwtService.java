@@ -28,7 +28,6 @@ public class JwtService {
         return Jwts.builder()
                 .subject(user.getEmail())
                 .claim("userId", user.getId().toString())
-                .claim("role", user.getRole().name())
                 .issuedAt(java.util.Date.from(now))
                 .expiration(java.util.Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
                 .signWith(key, io.jsonwebtoken.Jwts.SIG.HS512)

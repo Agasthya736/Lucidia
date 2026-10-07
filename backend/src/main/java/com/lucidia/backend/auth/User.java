@@ -26,8 +26,6 @@ public class User {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
-    @Enumerated(EnumType.STRING)
-    private Role role = Role.CLINICIAN;
 
     @Column(name = "created_at")
     private Instant createdAt = Instant.now();
@@ -54,6 +52,5 @@ public class User {
     public String getPasswordHash() { return passwordHash; }
     public String getAuthProvider() { return authProvider; }
     public String getAvatarUrl() { return avatarUrl; }
-    public Role getRole() { return role; }
     public Instant getCreatedAt() { return createdAt; }
 }

@@ -4,6 +4,10 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+/**
+ * Authentication Data Transfer Objects for registration, login, and Google OAuth.
+ * User authentication provides unified clinician credentials with no separate role field.
+ */
 public class AuthDtos {
 
     public record RegisterRequest(

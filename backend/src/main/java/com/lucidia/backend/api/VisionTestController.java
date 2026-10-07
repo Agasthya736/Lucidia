@@ -14,8 +14,8 @@ import com.lucidia.backend.orchestrator.PipelineResult;
 /**
  * Temporary endpoint for verifying the pipeline works end-to-end
  * before building the mobile-facing job submission API. Not part of
- * the real API surface - remove or gate behind an admin role before
- * any real deployment.
+ * the real API surface - remove or gate behind appropriate authorization
+ * before any real deployment.
  */
 @RestController
 @RequestMapping("/api/test")
