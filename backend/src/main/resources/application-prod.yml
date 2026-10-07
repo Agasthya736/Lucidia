@@ -20,8 +20,10 @@ lucidia:
     secret: ${LUCIDIA_JWT_SECRET}
     expiration-minutes: 60
   imaging:
-    storage-path: ${IMAGE_STORAGE_PATH:/data/images}
+    gcs-bucket: ${GCS_BUCKET}   # Required in prod — set via Cloud Run env var
     encryption-key-ref: ${IMAGE_ENCRYPTION_KEY_REF}
+  auth:
+    allow-mock: false            # Hard-coded off in prod — never override
   medsam:
     base-url: ${MEDSAM_BASE_URL:http://localhost:8001}
   google:

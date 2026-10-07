@@ -9,13 +9,10 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lucidia.backend.audit.AuditLogService;
-import com.lucidia.backend.orchestrator.PipelineOrchestrator;
-import com.lucidia.backend.orchestrator.PipelineResult;
 import com.lucidia.backend.quota.QuotaService;
 import com.lucidia.backend.triage.SliceInput;
 
@@ -25,7 +22,7 @@ public class ScanService {
     private static final Logger log = LoggerFactory.getLogger(ScanService.class);
 
     private final ScanRepository scanRepository;
-    private final PipelineOrchestrator orchestrator;
+    private final AsyncPipelineExecutor asyncPipelineExecutor;
     private final AuditLogService auditLogService;
     private final ImageStorageService imageStorageService;
     private final QuotaService quotaService;
@@ -34,13 +31,13 @@ public class ScanService {
 
     public ScanService(
             ScanRepository scanRepository,
-            PipelineOrchestrator orchestrator,
+            AsyncPipelineExecutor asyncPipelineExecutor,
             AuditLogService auditLogService,
             ImageStorageService imageStorageService,
             QuotaService quotaService,
             ScanDeduplicationService deduplicationService) {
         this.scanRepository = scanRepository;
-        this.orchestrator = orchestrator;
+        this.asyncPipelineExecutor = asyncPipelineExecutor;
         this.auditLogService = auditLogService;
         this.imageStorageService = imageStorageService;
         this.quotaService = quotaService;
@@ -105,7 +102,9 @@ public class ScanService {
         }
 
         auditLogService.record(userId, "SCAN_SUBMITTED_" + effectiveModality, scan.getId());
-        processAsync(scan.getId(), slices, effectiveModality, clinicalNotes, customApiKey);
+
+        // Dispatch to separate bean so @Async proxy is respected (self-invocation bypasses it)
+        asyncPipelineExecutor.execute(scan.getId(), slices, effectiveModality, clinicalNotes, customApiKey);
         return scan;
     }
 
@@ -119,36 +118,6 @@ public class ScanService {
     public Scan submit(UUID userId, String filename, byte[] imageBytes, String mimeType) {
         SliceInput slice = new SliceInput(0, filename, imageBytes, mimeType);
         return submit(userId, List.of(slice), "CT_SERIES", null, null);
-    }
-
-    @Async
-    public void processAsync(UUID scanId, List<SliceInput> slices, String modality, String clinicalNotes, String customApiKey) {
-        Scan scan = scanRepository.findById(scanId)
-                .orElseThrow(() -> new NoSuchElementException("Scan not found: " + scanId));
-
-        scan.setStatus(Scan.Status.PROCESSING);
-        scanRepository.save(scan);
-
-        try {
-            PipelineResult result = orchestrator.run(slices, modality, clinicalNotes, customApiKey);
-
-            scan.setTriageJson(objectMapper.writeValueAsString(result.triage()));
-            scan.setReportJson(objectMapper.writeValueAsString(result.report()));
-            scan.setVerificationJson(objectMapper.writeValueAsString(result.verification()));
-            scan.setEscalated(result.isEscalated());
-            scan.setStatus(Scan.Status.COMPLETED);
-            scan.setCompletedAt(Instant.now());
-        } catch (Exception e) {
-            log.error("Pipeline failed for scan {}: {}", scanId, e.getMessage(), e);
-            scan.setStatus(Scan.Status.FAILED);
-            scan.setErrorMessage(e.getMessage());
-        }
-
-        scanRepository.save(scan);
-    }
-
-    public void processAsync(UUID scanId, List<SliceInput> slices, String customApiKey) {
-        processAsync(scanId, slices, "CT_SERIES", null, customApiKey);
     }
 
     public Scan get(UUID scanId, UUID requestingUserId) {
@@ -165,7 +134,8 @@ public class ScanService {
     }
 
     /**
-     * Mandatory clinician sign-off workflow.
+     * Review sign-off workflow. Marks a completed scan as FINALIZED.
+     * reviewerName and reviewerCredentials are optional free-text fields for the user's own records.
      */
     public Scan finalizeScan(
             UUID scanId,
@@ -174,26 +144,19 @@ public class ScanService {
             String reviewerCredentials,
             String signOffNotes) {
 
-        if (reviewerName == null || reviewerName.trim().isEmpty()) {
-            throw new IllegalArgumentException("Clinician name is required for mandatory review sign-off.");
-        }
-        if (reviewerCredentials == null || reviewerCredentials.trim().isEmpty()) {
-            throw new IllegalArgumentException("Clinician credentials / medical license info is required.");
-        }
-
         Scan scan = get(scanId, requestingUserId);
         if (scan.getStatus() != Scan.Status.COMPLETED) {
             throw new IllegalStateException("Only completed scans can be finalized.");
         }
 
         scan.setStatus(Scan.Status.FINALIZED);
-        scan.setReviewerName(reviewerName.trim());
-        scan.setReviewerCredentials(reviewerCredentials.trim());
+        scan.setReviewerName(reviewerName != null ? reviewerName.trim() : "");
+        scan.setReviewerCredentials(reviewerCredentials != null ? reviewerCredentials.trim() : "");
         scan.setSignOffNotes(signOffNotes != null ? signOffNotes.trim() : "");
         scan.setFinalizedAt(Instant.now());
 
         Scan saved = scanRepository.save(scan);
-        auditLogService.record(requestingUserId, "SCAN_FINALIZED_BY_" + reviewerName.trim(), scanId);
+        auditLogService.record(requestingUserId, "SCAN_FINALIZED", scanId);
         return saved;
     }
 

@@ -43,7 +43,7 @@ class GoogleAuthServiceTest {
         assertNotNull(response);
         assertEquals("mock-jwt-token-123", response.token());
         assertEquals("test.doctor@lucidia.health", response.email());
-        assertEquals("Dr. test doctor", response.name());
+        assertEquals("test doctor", response.name());
         verify(userRepository).save(any(User.class));
     }
 

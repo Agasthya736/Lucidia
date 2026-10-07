@@ -174,8 +174,8 @@ public class ResponsibleAiGuardrailService {
 
     public String getResponsibleAiDisclaimer(String modality) {
         if ("EXTERNAL_PHOTO".equalsIgnoreCase(modality)) {
-            return "RESPONSIBLE AI & CLINICAL SAFETY NOTICE: External clinical photograph analysis provides automated morphological screening support only. It is NOT a histopathological, dermoscopic, or definitive biopsy diagnosis. Direct in-person clinical examination and practitioner sign-off is mandatory before making diagnostic or treatment decisions.";
+            return "EDUCATIONAL USE NOTICE: External photograph analysis is an informational and observational aid only. It is NOT a diagnostic tool. Always seek in-person evaluation from a qualified healthcare professional for any skin or clinical concerns.";
         }
-        return "CLINICAL DECISION SUPPORT NOTICE: Lucidia provides AI-assisted second-read CT documentation. It does NOT provide autonomous diagnostic decisions. Documented clinician review and sign-off is mandatory before clinical action.";
+        return "EDUCATIONAL USE NOTICE: Lucidia provides AI-assisted image analysis for informational purposes only. Results are not a substitute for professional medical advice, diagnosis, or treatment. Consult a qualified healthcare professional with any health concerns.";
     }
 }

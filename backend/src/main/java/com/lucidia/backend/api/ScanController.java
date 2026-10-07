@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -84,8 +83,7 @@ public class ScanController {
             @RequestParam(value = "images", required = false) List<MultipartFile> images,
             @RequestParam(value = "image", required = false) MultipartFile singleImage,
             @RequestParam(value = "modality", required = false, defaultValue = "CT_SERIES") String modality,
-            @RequestParam(value = "clinicalNotes", required = false) String clinicalNotes,
-            @RequestHeader(value = "X-Gemini-Api-Key", required = false) String customApiKey)
+            @RequestParam(value = "clinicalNotes", required = false) String clinicalNotes)
             throws IOException {
 
         UUID userId = currentUserId(jwt);
@@ -106,7 +104,8 @@ public class ScanController {
             slices.add(new SliceInput(i, file.getOriginalFilename(), file.getBytes(), mime));
         }
 
-        Scan scan = scanService.submit(userId, slices, modality, clinicalNotes, customApiKey);
+        // customApiKey is null: backend uses its own GEMINI_API_KEY env var
+        Scan scan = scanService.submit(userId, slices, modality, clinicalNotes, null);
 
         return ResponseEntity
                 .accepted()
@@ -123,12 +122,9 @@ public class ScanController {
     }
 
     @GetMapping("/quota")
-    public QuotaStatusDto getQuota(
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Gemini-Api-Key", required = false) String customApiKey) {
+    public QuotaStatusDto getQuota(@AuthenticationPrincipal Jwt jwt) {
         UUID userId = currentUserId(jwt);
-        boolean isByok = customApiKey != null && !customApiKey.isBlank();
-        return quotaService.getQuotaStatus(userId, isByok);
+        return quotaService.getQuotaStatus(userId, false);
     }
 
     @GetMapping("/{id}")
@@ -175,13 +171,9 @@ public class ScanController {
 
         UUID userId = currentUserId(jwt);
 
-        String reviewerName = req != null && req.reviewerName() != null && !req.reviewerName().isBlank()
-                ? req.reviewerName()
-                : "Dr. Reviewing Clinician";
-        String reviewerCreds = req != null && req.reviewerCredentials() != null && !req.reviewerCredentials().isBlank()
-                ? req.reviewerCredentials()
-                : "MD, Board Certified Radiologist";
-        String notes = req != null ? req.notes() : "";
+        String reviewerName = req != null ? req.reviewerName() : null;
+        String reviewerCreds = req != null ? req.reviewerCredentials() : null;
+        String notes = req != null ? req.notes() : null;
 
         Scan scan = scanService.finalizeScan(id, userId, reviewerName, reviewerCreds, notes);
         return ResponseEntity.ok(toDetail(scan));
@@ -214,8 +206,7 @@ public class ScanController {
     public ResponseEntity<Map<String, String>> askQuestion(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
-            @RequestBody Map<String, String> request,
-            @RequestHeader(value = "X-Gemini-Api-Key", required = false) String customApiKey) {
+            @RequestBody Map<String, String> request) {
 
         UUID userId = currentUserId(jwt);
         Scan scan = scanService.get(id, userId);
@@ -226,7 +217,8 @@ public class ScanController {
         }
 
         String reportJson = scan.getReportJson() != null ? scan.getReportJson() : "{}";
-        String answer = reportSynthesisService.answerQuestion(reportJson, question, customApiKey);
+        // Backend uses its own GEMINI_API_KEY env var; no client key accepted
+        String answer = reportSynthesisService.answerQuestion(reportJson, question, null);
 
         return ResponseEntity.ok(Map.of("answer", answer));
     }

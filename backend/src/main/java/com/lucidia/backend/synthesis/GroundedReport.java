@@ -33,7 +33,7 @@ public record GroundedReport(
                 isAutoSummary,
                 impression,
                 impression,
-                "CLINICAL DECISION SUPPORT NOTICE: Lucidia provides AI-assisted documentation. Clinician review is mandatory."
+                "EDUCATIONAL USE NOTICE: Lucidia provides AI-assisted image analysis for informational purposes only. Always consult a qualified healthcare professional for medical decisions."
         );
     }
 
@@ -52,12 +52,12 @@ public record GroundedReport(
                 impression,
                 "ROUTINE",
                 findings.overallConfidence(),
-                "Routine clinical follow-up as clinically indicated. No urgent intervention required.",
+                "Routine follow-up as appropriate. No urgent findings noted.",
                 "Triage Auto-Summary (High-Confidence Clean Scan)",
                 true,
                 "Normal Study: Visualized lungs, pleura, and mediastinum are clear without focal abnormality.",
                 "Your chest imaging appears clear and healthy, with no signs of pneumonia, fluid, or suspicious nodules detected.",
-                "CLINICAL DECISION SUPPORT NOTICE: Lucidia provides AI-assisted second-read CT documentation. It does NOT provide autonomous diagnostic decisions. Documented clinician review is mandatory."
+                "EDUCATIONAL USE NOTICE: Lucidia provides AI-assisted image analysis for informational purposes only. Results do not constitute a medical diagnosis. Consult a qualified healthcare professional for any health concerns."
         );
     }
 

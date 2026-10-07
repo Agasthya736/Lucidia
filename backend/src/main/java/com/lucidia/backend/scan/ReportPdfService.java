@@ -302,12 +302,12 @@ public class ReportPdfService {
 
             String reviewer = scan.getReviewerName() != null && !scan.getReviewerName().isBlank()
                     ? scan.getReviewerName()
-                    : "Attending Clinician";
+                    : "Reviewer";
             String credentials = scan.getReviewerCredentials() != null && !scan.getReviewerCredentials().isBlank()
                     ? scan.getReviewerCredentials()
-                    : "MD, Radiologist";
+                    : "";
 
-            Paragraph sigHeader = new Paragraph("MANDATORY CLINICIAN REVIEW & SIGN-OFF: COMPLETED", SUCCESS_FONT);
+            Paragraph sigHeader = new Paragraph("REVIEW COMPLETED", SUCCESS_FONT);
             document.add(sigHeader);
 
             PdfPTable sigTable = new PdfPTable(2);
@@ -315,11 +315,13 @@ public class ReportPdfService {
             sigTable.setSpacingBefore(6);
             sigTable.setSpacingAfter(10);
 
-            addMetaRow(sigTable, "Reviewing Clinician", reviewer);
-            addMetaRow(sigTable, "Credentials / License", credentials);
-            addMetaRow(sigTable, "Sign-off Timestamp", finalizedDate);
+            addMetaRow(sigTable, "Reviewed By", reviewer);
+            if (!credentials.isBlank()) {
+                addMetaRow(sigTable, "Credentials", credentials);
+            }
+            addMetaRow(sigTable, "Review Timestamp", finalizedDate);
             if (scan.getSignOffNotes() != null && !scan.getSignOffNotes().isBlank()) {
-                addMetaRow(sigTable, "Clinician Notes", scan.getSignOffNotes());
+                addMetaRow(sigTable, "Notes", scan.getSignOffNotes());
             }
 
             document.add(sigTable);

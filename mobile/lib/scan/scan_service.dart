@@ -7,29 +7,12 @@ import 'package:file_picker/file_picker.dart';
 
 class ScanService {
   static const String baseUrl = "https://lucidia-backend-794373598684.asia-south1.run.app";
-  static const String byokStorageKey = "custom_gemini_api_key";
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   Future<String> _authHeader() async {
     final token = await _storage.read(key: 'jwt_token');
     if (token == null) throw Exception('Not logged in');
     return 'Bearer $token';
-  }
-
-  Future<String?> getCustomApiKey() async {
-    return await _storage.read(key: byokStorageKey);
-  }
-
-  Future<void> setCustomApiKey(String key) async {
-    if (key.trim().isEmpty) {
-      await _storage.delete(key: byokStorageKey);
-    } else {
-      await _storage.write(key: byokStorageKey, value: key.trim());
-    }
-  }
-
-  Future<void> clearCustomApiKey() async {
-    await _storage.delete(key: byokStorageKey);
   }
 
   Future<Map<String, dynamic>> submitScanSeries(
@@ -40,13 +23,9 @@ class ScanService {
     if (files.isEmpty) throw Exception('No images selected.');
 
     final auth = await _authHeader();
-    final customKey = await getCustomApiKey();
 
     final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/api/scans'));
     request.headers['Authorization'] = auth;
-    if (customKey != null && customKey.isNotEmpty) {
-      request.headers['X-Gemini-Api-Key'] = customKey;
-    }
 
     request.fields['modality'] = modality;
     if (clinicalNotes != null && clinicalNotes.trim().isNotEmpty) {
@@ -76,16 +55,16 @@ class ScanService {
     if (streamed.statusCode == 400) {
       try {
         final json = jsonDecode(body);
-        throw Exception(json['message'] ?? 'Responsible AI rejection: Image not suitable for clinical evaluation.');
+        throw Exception(json['message'] ?? 'Image not suitable for analysis.');
       } catch (e) {
-        if (e is Exception && e.toString().contains('Responsible AI')) rethrow;
+        if (e is Exception && e.toString().contains('not suitable')) rethrow;
         throw Exception('Submission rejected (400): $body');
       }
     }
 
     if (streamed.statusCode == 429) {
       final json = jsonDecode(body);
-      throw Exception(json['message'] ?? 'Free tier monthly scan quota reached. Add your Gemini API key in Settings.');
+      throw Exception(json['message'] ?? 'Monthly scan quota reached. Please try again next month.');
     }
 
     if (streamed.statusCode != 200 && streamed.statusCode != 202) {
@@ -101,16 +80,9 @@ class ScanService {
 
   Future<Map<String, dynamic>> getQuota() async {
     final auth = await _authHeader();
-    final customKey = await getCustomApiKey();
-
-    final headers = {'Authorization': auth};
-    if (customKey != null && customKey.isNotEmpty) {
-      headers['X-Gemini-Api-Key'] = customKey;
-    }
-
     final response = await http.get(
       Uri.parse('$baseUrl/api/scans/quota'),
-      headers: headers,
+      headers: {'Authorization': auth},
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to load quota (${response.statusCode})');
@@ -197,19 +169,12 @@ class ScanService {
 
   Future<String> askQuestion(String id, String question) async {
     final auth = await _authHeader();
-    final customKey = await getCustomApiKey();
-
-    final headers = {
-      'Authorization': auth,
-      'Content-Type': 'application/json',
-    };
-    if (customKey != null && customKey.isNotEmpty) {
-      headers['X-Gemini-Api-Key'] = customKey;
-    }
-
     final response = await http.post(
       Uri.parse('$baseUrl/api/scans/$id/chat'),
-      headers: headers,
+      headers: {
+        'Authorization': auth,
+        'Content-Type': 'application/json',
+      },
       body: jsonEncode({'question': question}),
     );
 

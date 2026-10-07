@@ -15,11 +15,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
   final ScanService _scanService = ScanService();
 
-  final _apiKeyController = TextEditingController();
-  bool _obscureKey = true;
-  bool _savingKey = false;
   bool _loggingOut = false;
-  bool _hasCustomKey = false;
 
   bool _loadingProfile = true;
   String? _profileError;
@@ -31,13 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadProfile();
-    _loadSettings();
-  }
-
-  @override
-  void dispose() {
-    _apiKeyController.dispose();
-    super.dispose();
+    _loadQuota();
   }
 
   Future<void> _loadProfile() async {
@@ -74,48 +64,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _loadSettings() async {
-    final key = await _scanService.getCustomApiKey();
-    if (key != null && key.isNotEmpty) {
-      setState(() {
-        _apiKeyController.text = key;
-        _hasCustomKey = true;
-      });
-    }
-
+  Future<void> _loadQuota() async {
     try {
       final q = await _scanService.getQuota();
       if (mounted) setState(() => _quota = q);
     } catch (_) {}
-  }
-
-  Future<void> _saveKey() async {
-    setState(() => _savingKey = true);
-    final key = _apiKeyController.text.trim();
-    await _scanService.setCustomApiKey(key);
-    await _loadSettings();
-    if (!mounted) return;
-    setState(() => _savingKey = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(key.isEmpty
-            ? 'Custom Gemini key cleared. Using standard quota.'
-            : 'Gemini API key saved securely. Unlimited BYOK mode activated.'),
-      ),
-    );
-  }
-
-  Future<void> _clearKey() async {
-    await _scanService.clearCustomApiKey();
-    setState(() {
-      _apiKeyController.clear();
-      _hasCustomKey = false;
-    });
-    await _loadSettings();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Custom API key removed.')),
-    );
   }
 
   Future<void> _handleLogout() async {
@@ -136,13 +89,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: Text('Privacy Policy & Data Handling', style: TextStyle(color: LucidiaColors.textPrimary)),
         content: SingleChildScrollView(
           child: Text(
-            'Lucidia (VeriRad) Data Protection & Privacy Notice:\n\n'
-            '1. Patient Data Protection: CT scan slice images processed by Lucidia are transmitted over encrypted TLS channels. '
-            'Protected Health Information (PHI) is automatically stripped or de-identified.\n\n'
-            '2. BYOK Privacy: When Bring-Your-Own-Key (BYOK) mode is active, your Gemini API key is stored locally in the hardware-backed '
-            'Android Keystore / iOS Keychain. It is never logged or stored in backend logs.\n\n'
-            '3. Data Retention: Image files are stored temporarily for report generation and sign-off, and can be permanently deleted at any time.\n\n'
-            '4. Zero Third-Party Monetization: Health data is never sold, leased, or used for third-party model training.',
+            'Lucidia Data Protection & Privacy Notice:\n\n'
+            '1. Image Data: Scan images are transmitted over encrypted TLS channels and stored securely '
+            'in Google Cloud Storage. Images can be permanently deleted at any time from your account.\n\n'
+            '2. Personal Data: Your name, email, and profile picture (if using Google Sign-In) are stored '
+            'to identify your account. We do not sell or share personal data with third parties.\n\n'
+            '3. AI Analysis: Images are processed by on-device and cloud AI models to generate informational '
+            'reports. Processing is done in compliance with our data processing agreements.\n\n'
+            '4. Retention: You may request deletion of all your data at any time by contacting us or '
+            'deleting your account.',
             style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 13, height: 1.4),
           ),
         ),
@@ -156,19 +111,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showRegulatoryNotice() {
+  void _showDisclaimerNotice() {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: LucidiaColors.surfaceElevated,
-        title: Text('Regulatory Classification & SaMD', style: TextStyle(color: LucidiaColors.textPrimary)),
+        title: Text('Educational Use Disclaimer', style: TextStyle(color: LucidiaColors.textPrimary)),
         content: SingleChildScrollView(
           child: Text(
-            'Software as a Medical Device (SaMD) Notice:\n\n'
-            '• Medical Device Positioning: Lucidia is designed as a second-read documentation and triage workflow assistive tool.\n\n'
-            '• Not Autonomous: The system does NOT provide autonomous diagnostic decisions. It does not replace professional radiological evaluation.\n\n'
-            '• Mandatory Sign-Off: All generated documentation requires explicit review and certification before clinical use or export.\n\n'
-            '• Intended Use: For use in medical documentation and imaging workflows.',
+            'Important Notice:\n\n'
+            '• Lucidia is an educational and informational tool only.\n\n'
+            '• The AI-generated reports and analyses are for general informational purposes and '
+            'do NOT constitute medical advice, diagnosis, or treatment.\n\n'
+            '• Always consult a qualified healthcare professional for any medical concerns '
+            'or before making any health-related decisions.\n\n'
+            '• Do not rely on Lucidia results for clinical decision-making.',
             style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 13, height: 1.4),
           ),
         ),
@@ -213,8 +170,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildThemeCard(),
               const SizedBox(height: 16),
               _buildQuotaCard(),
-              const SizedBox(height: 16),
-              _buildByokCard(),
               const SizedBox(height: 16),
               _buildSystemInfoCard(),
               const SizedBox(height: 16),
@@ -410,7 +365,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isDark ? 'Radiology Dark Mode' : 'Clinical Light Mode',
+                        isDark ? 'Dark Mode' : 'Light Mode',
                         style: TextStyle(
                           color: LucidiaColors.textPrimary,
                           fontSize: 14,
@@ -419,7 +374,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        isDark ? 'Optimized for dim diagnostic reading rooms' : 'Crisp daytime theme',
+                        isDark ? 'Easier on the eyes in low light' : 'Crisp daytime display',
                         style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 11),
                       ),
                     ],
@@ -446,7 +401,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final int remaining = _quota?['remainingThisMonth'] ?? 20;
     final int total = _quota?['monthlyLimit'] ?? 20;
     final int used = _quota?['usedThisMonth'] ?? 0;
-    final bool isByok = _hasCustomKey || (_quota?['byokActive'] == true);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -454,131 +408,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            'Monthly Scan Quota',
+            style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: total > 0 ? (used / total).clamp(0.0, 1.0) : 0.0,
+              backgroundColor: LucidiaColors.surface,
+              color: remaining <= 3 ? LucidiaColors.warning : LucidiaColors.teal,
+              minHeight: 8,
+            ),
+          ),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Scan Quota & Rate Limits',
-                style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
+                '$used of $total scans used this month',
+                style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: isByok ? LucidiaColors.teal.withValues(alpha: 0.15) : LucidiaColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isByok ? LucidiaColors.teal : LucidiaColors.border),
-                ),
-                child: Text(
-                  isByok ? 'BYOK · Unlimited' : 'Free Tier',
-                  style: TextStyle(
-                    color: isByok ? LucidiaColors.teal : LucidiaColors.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (isByok)
-            const Text(
-              'Your custom API key is active. Scan limits and rate constraints are waived.',
-              style: TextStyle(color: LucidiaColors.teal, fontSize: 12),
-            )
-          else ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: total > 0 ? (used / total).clamp(0.0, 1.0) : 0.0,
-                backgroundColor: LucidiaColors.surface,
-                color: remaining <= 3 ? LucidiaColors.warning : LucidiaColors.teal,
-                minHeight: 8,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '$used of $total scans used this month',
-                  style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
-                ),
-                Text(
-                  '$remaining remaining',
-                  style: TextStyle(
-                    color: remaining <= 3 ? LucidiaColors.warning : LucidiaColors.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildByokCard() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: lucidiaCardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.vpn_key_outlined, size: 18, color: LucidiaColors.teal),
-              SizedBox(width: 8),
               Text(
-                'Bring Your Own Key (BYOK)',
-                style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Supply your personal or institution Google Gemini API key to unlock unlimited high-throughput scans. '
-            'Stored securely in local Keystore, never logged on backend.',
-            style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12, height: 1.4),
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: _apiKeyController,
-            obscureText: _obscureKey,
-            decoration: InputDecoration(
-              labelText: 'Gemini API Key',
-              hintText: 'AIzaSy...',
-              prefixIcon: const Icon(Icons.key),
-              suffixIcon: IconButton(
-                icon: Icon(_obscureKey ? Icons.visibility_off : Icons.visibility),
-                onPressed: () => setState(() => _obscureKey = !_obscureKey),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _savingKey ? null : _saveKey,
-                  child: _savingKey
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Save API Key'),
+                '$remaining remaining',
+                style: TextStyle(
+                  color: remaining <= 3 ? LucidiaColors.warning : LucidiaColors.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              if (_hasCustomKey) ...[
-                const SizedBox(width: 12),
-                OutlinedButton(
-                  onPressed: _clearKey,
-                  style: OutlinedButton.styleFrom(foregroundColor: LucidiaColors.error),
-                  child: const Text('Clear'),
-                ),
-              ],
             ],
           ),
         ],
@@ -594,17 +453,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Architecture & Pipeline Status',
+            'AI Pipeline',
             style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 14),
-          _infoRow(Icons.memory, 'Triage Detector', 'CT Pixel Analyzer v1.0'),
+          _infoRow(Icons.biotech_outlined, 'Triage Detector', 'Image Pixel Analyzer v1.0'),
           const SizedBox(height: 10),
-          _infoRow(Icons.account_tree_outlined, 'Cost Branching', 'Clean Bypass Activated'),
+          _infoRow(Icons.account_tree_outlined, 'Cost Optimization', 'Clean Bypass Activated'),
           const SizedBox(height: 10),
-          _infoRow(Icons.auto_awesome, 'Synthesis LLM', 'Grounded Schema Provider'),
+          _infoRow(Icons.auto_awesome, 'Report Synthesis', 'Grounded AI Provider'),
           const SizedBox(height: 10),
-          _infoRow(Icons.verified_outlined, 'Verifier Engine', 'Strict Grounding Check'),
+          _infoRow(Icons.verified_outlined, 'Verifier Engine', 'Grounding Check Active'),
         ],
       ),
     );
@@ -618,7 +477,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Compliance & Medical Disclaimers',
+            'Legal & Disclaimers',
             style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
@@ -627,7 +486,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.privacy_tip_outlined, color: LucidiaColors.teal),
-              title: Text('Privacy Policy & Health Data Protection', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
+              title: Text('Privacy Policy & Data Handling', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
               trailing: Icon(Icons.chevron_right, color: LucidiaColors.textSecondary),
               onTap: _showPrivacyPolicy,
             ),
@@ -637,10 +496,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: Colors.transparent,
             child: ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.medical_services_outlined, color: LucidiaColors.teal),
-              title: Text('SaMD Classification & Review Notice', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
+              leading: const Icon(Icons.info_outline, color: LucidiaColors.teal),
+              title: Text('Educational Use Disclaimer', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
               trailing: Icon(Icons.chevron_right, color: LucidiaColors.textSecondary),
-              onTap: _showRegulatoryNotice,
+              onTap: _showDisclaimerNotice,
             ),
           ),
         ],

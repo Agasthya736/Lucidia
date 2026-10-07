@@ -16,8 +16,7 @@ import java.util.Collections;
 
 /**
  * Service for authenticating users via Google OAuth 2.0 ID tokens.
- * Creates or retrieves user records without role distinctions, issuing standard
- * JWTs with clinician-level platform access.
+ * Creates or retrieves user records and issues standard JWTs for platform access.
  */
 @Service
 public class GoogleAuthService {
@@ -58,8 +57,8 @@ public class GoogleAuthService {
                 throw new IllegalArgumentException("Invalid Google ID token");
             }
             String rest = idTokenString.substring(mockPrefix.length());
-            String mockEmail = rest.contains("@") ? rest : "demo.clinician@lucidia.health";
-            String mockName = "Dr. " + mockEmail.split("@")[0].replace(".", " ");
+            String mockEmail = rest.contains("@") ? rest : "demo.user@lucidia.health";
+            String mockName = mockEmail.split("@")[0].replace(".", " ");
             log.info("Processing dev/mock Google sign-in");
             return getOrCreateGoogleUser(mockEmail, mockName, null);
         }

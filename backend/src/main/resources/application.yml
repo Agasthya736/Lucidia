@@ -30,11 +30,18 @@ logging:
     org.springframework.security: TRACE
 lucidia:
   jwt:
-    secret: ${JWT_SECRET:this-is-a-dev-only-secret-change-before-any-real-deployment-32chars}
+    # REQUIRED in production: must be at least 64 characters (512-bit).
+    # In dev, set JWT_SECRET in .env or environment. Never commit a real secret here.
+    secret: ${JWT_SECRET:dev-only-secret-replace-me-before-any-real-deployment-64chars!!}
     expiration-minutes: 60
   imaging:
+    # Set GCS_BUCKET to activate Google Cloud Storage. Leave blank for local-disk (dev only).
+    gcs-bucket: ${GCS_BUCKET:}
     storage-path: ${IMAGE_STORAGE_PATH:/data/images}
     encryption-key-ref: ${IMAGE_ENCRYPTION_KEY_REF:local-dev-only}
+  auth:
+    # MUST be false in production. Set lucidia.auth.allow-mock=true ONLY in local dev.
+    allow-mock: ${LUCIDIA_ALLOW_MOCK:false}
   edge-ai:
     triage-model-version: v0.1
   ollama:
