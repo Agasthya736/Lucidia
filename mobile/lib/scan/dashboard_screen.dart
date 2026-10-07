@@ -51,13 +51,15 @@ class DashboardScreenState extends State<DashboardScreen> {
 
   int get _totalScans => _scans.length;
 
-  int get _pendingReviewCount => _scans.where((s) {
+  int get _completedCount => _scans.where((s) {
         final status = s['status'] as String? ?? '';
-        final flagged = s['flaggedForReview'] as bool? ?? false;
-        return status == 'PROCESSING' || status == 'RECEIVED' || status == 'COMPLETED' || flagged;
+        return status == 'COMPLETED' || status == 'FINALIZED';
       }).length;
 
-  int get _finalizedCount => _scans.where((s) => s['status'] == 'FINALIZED').length;
+  int get _inProgressCount => _scans.where((s) {
+        final status = s['status'] as String? ?? '';
+        return status == 'PROCESSING' || status == 'RECEIVED';
+      }).length;
 
   List<Map<String, dynamic>> get _recentScans {
     final copy = List<Map<String, dynamic>>.from(_scans);
@@ -69,11 +71,10 @@ class DashboardScreenState extends State<DashboardScreen> {
     return copy.take(5).toList();
   }
 
-  Color _statusColor(String status, bool flagged) {
+  Color _statusColor(String status) {
     if (status == 'FINALIZED' || status == 'COMPLETED') return LucidiaColors.teal;
     if (status == 'FAILED') return LucidiaColors.error;
     if (status == 'PROCESSING' || status == 'RECEIVED') return LucidiaColors.warning;
-    if (flagged) return LucidiaColors.warning;
     return LucidiaColors.teal;
   }
 
@@ -113,19 +114,19 @@ class DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _metricCard(
-                      'Pending Review',
-                      _pendingReviewCount.toString(),
-                      Icons.rate_review_outlined,
-                      LucidiaColors.warning,
+                      'Completed',
+                      _completedCount.toString(),
+                      Icons.task_alt_outlined,
+                      LucidiaColors.teal,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _metricCard(
-                      'Finalized',
-                      _finalizedCount.toString(),
-                      Icons.task_alt_outlined,
-                      LucidiaColors.success,
+                      'In Progress',
+                      _inProgressCount.toString(),
+                      Icons.hourglass_top_outlined,
+                      LucidiaColors.warning,
                     ),
                   ),
                 ],
@@ -230,7 +231,6 @@ class DashboardScreenState extends State<DashboardScreen> {
                   itemBuilder: (context, index) {
                     final scan = _recentScans[index];
                     final status = scan['status'] as String? ?? 'UNKNOWN';
-                    final flagged = scan['flaggedForReview'] as bool? ?? false;
                     final createdAt = DateTime.tryParse(scan['createdAt'] ?? '');
                     return InkWell(
                       borderRadius: BorderRadius.circular(14),
@@ -286,7 +286,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                                         height: 8,
                                         margin: const EdgeInsets.only(right: 6),
                                         decoration: BoxDecoration(
-                                          color: _statusColor(status, flagged),
+                                          color: _statusColor(status),
                                           shape: BoxShape.circle,
                                         ),
                                       ),

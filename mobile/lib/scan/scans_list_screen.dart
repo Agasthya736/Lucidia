@@ -5,7 +5,7 @@ import 'scan_service.dart';
 import 'pipeline_status_screen.dart';
 import 'report_viewer_screen.dart';
 
-enum ScanFilter { all, pending, finalized }
+enum ScanFilter { all, completed, inProgress }
 
 class ScansListScreen extends StatefulWidget {
   const ScansListScreen({super.key});
@@ -46,24 +46,25 @@ class ScansListScreenState extends State<ScansListScreen> {
 
   List<Map<String, dynamic>> get _filteredScans {
     switch (_selectedFilter) {
-      case ScanFilter.pending:
+      case ScanFilter.inProgress:
         return _scans.where((s) {
           final status = s['status'] as String? ?? '';
-          final flagged = s['flaggedForReview'] as bool? ?? false;
-          return status == 'PROCESSING' || status == 'RECEIVED' || status == 'COMPLETED' || flagged;
+          return status == 'PROCESSING' || status == 'RECEIVED';
         }).toList();
-      case ScanFilter.finalized:
-        return _scans.where((s) => s['status'] == 'FINALIZED').toList();
+      case ScanFilter.completed:
+        return _scans.where((s) {
+          final status = s['status'] as String? ?? '';
+          return status == 'COMPLETED' || status == 'FINALIZED';
+        }).toList();
       case ScanFilter.all:
         return _scans;
     }
   }
 
-  Color _statusColor(String status, bool flagged) {
+  Color _statusColor(String status) {
     if (status == 'FINALIZED' || status == 'COMPLETED') return LucidiaColors.teal;
     if (status == 'FAILED') return LucidiaColors.error;
     if (status == 'PROCESSING' || status == 'RECEIVED') return LucidiaColors.warning;
-    if (flagged) return LucidiaColors.warning;
     return LucidiaColors.teal;
   }
 
@@ -84,19 +85,21 @@ class ScansListScreenState extends State<ScansListScreen> {
                 _filterChip('All', ScanFilter.all, _scans.length),
                 const SizedBox(width: 8),
                 _filterChip(
-                  'Pending Review',
-                  ScanFilter.pending,
+                  'Completed',
+                  ScanFilter.completed,
                   _scans.where((s) {
                     final st = s['status'] as String? ?? '';
-                    final fl = s['flaggedForReview'] as bool? ?? false;
-                    return st == 'PROCESSING' || st == 'RECEIVED' || st == 'COMPLETED' || fl;
+                    return st == 'COMPLETED' || st == 'FINALIZED';
                   }).length,
                 ),
                 const SizedBox(width: 8),
                 _filterChip(
-                  'Finalized',
-                  ScanFilter.finalized,
-                  _scans.where((s) => s['status'] == 'FINALIZED').length,
+                  'In Progress',
+                  ScanFilter.inProgress,
+                  _scans.where((s) {
+                    final st = s['status'] as String? ?? '';
+                    return st == 'PROCESSING' || st == 'RECEIVED';
+                  }).length,
                 ),
               ],
             ),
@@ -152,7 +155,6 @@ class ScansListScreenState extends State<ScansListScreen> {
                               itemBuilder: (context, index) {
                                 final scan = filtered[index];
                                 final status = scan['status'] as String? ?? 'UNKNOWN';
-                                final flagged = scan['flaggedForReview'] as bool? ?? false;
                                 final createdAt = DateTime.tryParse(scan['createdAt'] ?? '');
                                 final severity = scan['report'] is Map ? scan['report']['severity'] as String? : null;
                                 final resultBandStr = scan['resultBand'] as String?;
@@ -211,14 +213,14 @@ class ScansListScreenState extends State<ScansListScreen> {
                                                     height: 8,
                                                     margin: const EdgeInsets.only(right: 6),
                                                     decoration: BoxDecoration(
-                                                      color: _statusColor(status, flagged),
+                                                      color: _statusColor(status),
                                                       shape: BoxShape.circle,
                                                     ),
                                                   ),
                                                   Text(
                                                     '${status[0]}${status.substring(1).toLowerCase()}',
                                                     style: TextStyle(
-                                                      color: _statusColor(status, flagged),
+                                                      color: _statusColor(status),
                                                       fontSize: 12,
                                                       fontWeight: FontWeight.w500,
                                                     ),

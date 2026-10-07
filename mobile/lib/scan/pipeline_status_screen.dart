@@ -205,14 +205,14 @@ class _PipelineStatusScreenState extends State<PipelineStatusScreen> {
       children: [
         const Icon(Icons.error_outline, color: LucidiaColors.error, size: 52),
         const SizedBox(height: 16),
-          Text(
-          'Analysis Failed',
+        Text(
+          'Analysis Could Not Be Completed',
           style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
         Text(
-          _error!,
-          style: const TextStyle(color: LucidiaColors.error, fontSize: 13),
+          'Something went wrong. Please try again, or see a doctor if you are concerned.',
+          style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 13, height: 1.4),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),

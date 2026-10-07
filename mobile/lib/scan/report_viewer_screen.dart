@@ -175,7 +175,44 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
             ? const Center(child: CircularProgressIndicator(color: LucidiaColors.teal))
             : _error != null
                 ? _buildError()
-                : _buildReport(),
+                : (_scan != null && _scan!['status'] == 'FAILED')
+                    ? _buildFailedView()
+                    : _buildReport(),
+      ),
+    );
+  }
+
+  Widget _buildFailedView() {
+    final errorMessage = (_scan?['errorMessage'] as String?)?.trim().isNotEmpty == true
+        ? _scan!['errorMessage'] as String
+        : 'Something went wrong. Please try again, or see a doctor if you are concerned.';
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.info_outline, color: LucidiaColors.warning, size: 52),
+            const SizedBox(height: 16),
+            Text(
+              'Analysis Could Not Be Completed',
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              errorMessage,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.4),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Back to Scans'),
+            ),
+          ],
+        ),
       ),
     );
   }

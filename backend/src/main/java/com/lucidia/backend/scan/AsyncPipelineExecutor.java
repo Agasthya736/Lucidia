@@ -55,15 +55,11 @@ public class AsyncPipelineExecutor {
             scan.setEscalated(result.isEscalated());
             scan.setStatus(Scan.Status.COMPLETED);
             scan.setCompletedAt(Instant.now());
+            scan.setFinalizedAt(Instant.now());
         } catch (Exception e) {
             log.error("Pipeline failed for scan {}: {}", scanId, e.getMessage(), e);
             scan.setStatus(Scan.Status.FAILED);
-            // Truncate very long stack-trace messages to avoid DB column overflow
-            String msg = e.getMessage();
-            if (msg != null && msg.length() > 2000) {
-                msg = msg.substring(0, 2000) + "…";
-            }
-            scan.setErrorMessage(msg != null ? msg : e.getClass().getSimpleName());
+            scan.setErrorMessage("Something went wrong. Please try again, or see a doctor if you are concerned.");
         }
 
         scanRepository.save(scan);
