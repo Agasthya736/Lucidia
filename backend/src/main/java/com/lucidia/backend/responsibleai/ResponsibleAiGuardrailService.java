@@ -81,6 +81,7 @@ public class ResponsibleAiGuardrailService {
         int totalSampled = 0;
         int biologicalSkinOrTissuePixels = 0;
         int pureMonochromePixels = 0;
+        int plantOrNaturePixels = 0;
 
         for (int y = 0; y < height; y += sampleStep) {
             for (int x = 0; x < width; x += sampleStep) {
@@ -96,7 +97,11 @@ public class ResponsibleAiGuardrailService {
                     pureMonochromePixels++;
                 }
 
-                // Check standard biological human skin & tissue reflectance criteria
+                // Check for typical foliage, plant, leaf, tree tones (strong green predominance)
+                if (g > 60 && g > (r * 1.15) && g > (b * 1.15)) {
+                    plantOrNaturePixels++;
+                }
+
                 // Typical cutaneous tone in RGB: R > G > B with moderate contrast, or erythema (R >> G, B)
                 boolean isSkinTone = (r > 60 && g > 40 && b > 20) &&
                         (r > g) &&
@@ -116,16 +121,26 @@ public class ResponsibleAiGuardrailService {
 
         double flatRatio = (double) pureMonochromePixels / totalSampled;
         if (flatRatio > 0.96) {
-            throw new ResponsibleAiException("Responsible AI Guardrail: Image appears blank or completely uniform. Please upload a clear clinical photograph.");
+            throw new ResponsibleAiException("Please upload a valid medical CT slice, X-ray, or clear clinical photograph of the affected area.");
+        }
+
+        double plantRatio = (double) plantOrNaturePixels / totalSampled;
+        if (plantRatio > 0.20) {
+            throw new ResponsibleAiException(
+                    "Non-medical image detected (such as foliage or outdoor nature). Please upload a valid medical CT slice, X-ray, or clinical skin photograph to proceed."
+            );
         }
 
         double biologicalRatio = (double) biologicalSkinOrTissuePixels / totalSampled;
-        log.info("External photo #{}: biological tissue ratio = {}", sliceIndex + 1, Math.round(biologicalRatio * 1000.0) / 1000.0);
+        log.info("External photo #{}: biological tissue ratio = {}, plant ratio = {}",
+                sliceIndex + 1,
+                Math.round(biologicalRatio * 1000.0) / 1000.0,
+                Math.round(plantRatio * 1000.0) / 1000.0);
 
         // If biological tissue ratio is virtually zero (< 1.5%), reject non-clinical / random image
         if (biologicalRatio < 0.015) {
             throw new ResponsibleAiException(
-                    "Responsible AI Guardrail: Non-clinical image detected. Lucidia is strictly designed for medical diagnostics and clinical photographs of visible external findings (skin lesions, wounds, external swellings, trauma). Submitting non-medical imagery is prohibited."
+                    "Non-medical image detected. Lucidia cannot process random objects, landscapes, or general photos. Please upload a clear medical scan (CT / X-ray) or clinical photograph of the affected skin/body area."
             );
         }
     }

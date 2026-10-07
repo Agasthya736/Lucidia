@@ -13,20 +13,15 @@ RUN mvn -q -DskipTests package -B
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-# Non-root user for security
-RUN addgroup -S lucidia && adduser -S lucidia -G lucidia
-USER lucidia
+# Non-root user for security + data directory (must be created as root first)
+RUN addgroup -S lucidia && adduser -S lucidia -G lucidia \
+    && mkdir -p /data/images \
+    && chown -R lucidia:lucidia /data
 
-# Directory for local scan image storage (bind-mounted or Cloud Storage FUSE in prod)
-RUN mkdir -p /data/images
+USER lucidia
 
 COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", \
-  "-Duser.timezone=Asia/Kolkata", \
-  "-Dserver.port=8080", \
-  "-XX:+UseContainerSupport", \
-  "-XX:MaxRAMPercentage=75.0", \
-  "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "java -Duser.timezone=Asia/Kolkata -Dserver.port=${PORT:-8080} -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -jar app.jar"]

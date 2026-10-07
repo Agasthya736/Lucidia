@@ -15,19 +15,21 @@ class GoogleAuthServiceTest {
 
     private UserRepository userRepository;
     private JwtService jwtService;
-    private GoogleAuthService googleAuthService;
+    private GoogleAuthService mockEnabledService;
+    private GoogleAuthService mockDisabledService;
 
     @BeforeEach
     void setUp() {
         userRepository = Mockito.mock(UserRepository.class);
         jwtService = Mockito.mock(JwtService.class);
-        googleAuthService = new GoogleAuthService(userRepository, jwtService, "test-client-id");
+        mockEnabledService = new GoogleAuthService(userRepository, jwtService, "test-client-id", true);
+        mockDisabledService = new GoogleAuthService(userRepository, jwtService, "test-client-id", false);
     }
 
     @Test
     void testBlankTokenThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> googleAuthService.authenticate(""));
-        assertThrows(IllegalArgumentException.class, () -> googleAuthService.authenticate(null));
+        assertThrows(IllegalArgumentException.class, () -> mockEnabledService.authenticate(""));
+        assertThrows(IllegalArgumentException.class, () -> mockEnabledService.authenticate(null));
     }
 
     @Test
@@ -36,7 +38,7 @@ class GoogleAuthServiceTest {
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(jwtService.generateToken(any(User.class))).thenReturn("mock-jwt-token-123");
 
-        AuthResponse response = googleAuthService.authenticate("mock_test.doctor@lucidia.health");
+        AuthResponse response = mockEnabledService.authenticate("mock_test.doctor@lucidia.health");
 
         assertNotNull(response);
         assertEquals("mock-jwt-token-123", response.token());
@@ -51,7 +53,7 @@ class GoogleAuthServiceTest {
         when(userRepository.findByEmail("existing@lucidia.health")).thenReturn(Optional.of(existingUser));
         when(jwtService.generateToken(existingUser)).thenReturn("existing-jwt-token");
 
-        AuthResponse response = googleAuthService.authenticate("mock_existing@lucidia.health");
+        AuthResponse response = mockEnabledService.authenticate("mock_existing@lucidia.health");
 
         assertNotNull(response);
         assertEquals("existing-jwt-token", response.token());
@@ -60,7 +62,30 @@ class GoogleAuthServiceTest {
     }
 
     @Test
+    void testMockTokenRejectedWhenMockDisabled() {
+        assertThrows(IllegalArgumentException.class,
+                () -> mockDisabledService.authenticate("mock_existing@lucidia.health"));
+        verifyNoInteractions(userRepository, jwtService);
+    }
+
+    @Test
+    void testDevPrefixTokenRejectedWhenMockDisabled() {
+        assertThrows(IllegalArgumentException.class,
+                () -> mockDisabledService.authenticate("dev_anyone@lucidia.health"));
+        verifyNoInteractions(userRepository, jwtService);
+    }
+
+    @Test
+    void testRealTokenRejectedWhenClientIdNotConfigured() {
+        GoogleAuthService unconfigured = new GoogleAuthService(userRepository, jwtService, "", false);
+        assertThrows(IllegalArgumentException.class,
+                () -> unconfigured.authenticate("header.payload.signature"));
+        verifyNoInteractions(userRepository, jwtService);
+    }
+
+    @Test
     void testInvalidTokenThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> googleAuthService.authenticate("invalid_non_mock_token_string"));
+        assertThrows(IllegalArgumentException.class,
+                () -> mockDisabledService.authenticate("invalid_non_mock_token_string"));
     }
 }

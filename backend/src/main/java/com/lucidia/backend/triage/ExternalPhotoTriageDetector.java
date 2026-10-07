@@ -248,17 +248,17 @@ public class ExternalPhotoTriageDetector {
                 String desc;
 
                 if ("VERRUCOUS".equals(detectedCategory)) {
-                    lesionType = "Periungual hyperkeratotic / verrucous plaque (suspected verruca vulgaris)";
-                    region = "Hand / Digit / Periungual Cutaneous Tissue";
-                    desc = String.format("Circumscribed exophytic hyperkeratotic verrucous plaque measuring approx. %.1f mm involving the digit proximal/lateral nail fold, consistent with periungual verruca vulgaris. No acute surrounding cellulitis or purulence.", sizeMm);
+                    lesionType = "Elevated skin lesion / wart (suspected verruca or keratosis)";
+                    region = "Hand / Skin Surface";
+                    desc = "Elevated skin surface lesion with irregular texture noted on the hand or skin surface. No acute spreading redness observed.";
                 } else if ("ERYTHEMATOUS".equals(detectedCategory)) {
-                    lesionType = "Erythematous cutaneous plaque / superficial inflammation";
-                    region = "Hand / Cutaneous Soft Tissue";
-                    desc = String.format("Focal erythematous inflammatory plaque measuring approx. %.1f mm on cutaneous tissue. No fluctuance observed.", sizeMm);
+                    lesionType = "Redness / localized skin inflammation";
+                    region = "Hand / Skin Surface";
+                    desc = "Area of localized skin redness or mild inflammation noted on the skin surface.";
                 } else {
-                    lesionType = "Pigmented cutaneous macule / lesion";
-                    region = "Hand / Cutaneous Soft Tissue";
-                    desc = String.format("Focal pigmented lesion measuring approx. %.1f mm with discrete margins.", sizeMm);
+                    lesionType = "Pigmented spot / cutaneous mark";
+                    region = "Hand / Skin Surface";
+                    desc = "Localized pigmented area or spot noted on the skin surface with distinct borders.";
                 }
 
                 lesions.add(new DetectedLesion(

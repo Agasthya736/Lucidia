@@ -190,6 +190,11 @@
 			<artifactId>google-http-client-gson</artifactId>
 			<version>1.46.3</version>
 		</dependency>
+		<dependency>
+			<groupId>com.google.cloud.sql</groupId>
+			<artifactId>postgres-socket-factory</artifactId>
+			<version>1.29.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>

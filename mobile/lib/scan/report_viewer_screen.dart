@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../shared/theme.dart';
 import '../shared/pdf_saver.dart';
 import 'scan_service.dart';
-import 'clinician_sign_off_dialog.dart';
 
 class ReportViewerScreen extends StatefulWidget {
   final String scanId;
@@ -23,6 +22,17 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
   final Map<int, Uint8List> _sliceImages = {};
   bool _sliceLoading = false;
   bool _showTelemetry = false;
+
+  // Q&A Chat State
+  final TextEditingController _questionController = TextEditingController();
+  final List<Map<String, String>> _chatMessages = [];
+  bool _askingQuestion = false;
+
+  @override
+  void dispose() {
+    _questionController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -68,32 +78,40 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
     }
   }
 
-  void _openSignOffDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => ClinicianSignOffDialog(
-        scanId: widget.scanId,
-        onSignedOff: (updated) {
-          setState(() => _scan = updated);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Clinician sign-off recorded. Report export unlocked.')),
-          );
-        },
-      ),
-    );
+
+
+  Future<void> _askQuestion(String question) async {
+    final q = question.trim();
+    if (q.isEmpty || _askingQuestion) return;
+
+    _questionController.clear();
+    setState(() {
+      _chatMessages.add({'role': 'user', 'text': q});
+      _askingQuestion = true;
+    });
+
+    try {
+      final answer = await _scanService.askQuestion(widget.scanId, q);
+      if (mounted) {
+        setState(() {
+          _chatMessages.add({'role': 'ai', 'text': answer});
+          _askingQuestion = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _chatMessages.add({
+            'role': 'ai',
+            'text': 'Sorry, I could not answer that right now. Please discuss any questions about your scan with your doctor.'
+          });
+          _askingQuestion = false;
+        });
+      }
+    }
   }
 
   Future<void> _downloadPdf() async {
-    if (_scan?['status'] != 'FINALIZED') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Clinician sign-off is required before exporting the PDF.'),
-          backgroundColor: LucidiaColors.warning,
-        ),
-      );
-      return;
-    }
     try {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Preparing report PDF...')),
@@ -143,18 +161,12 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
           ),
           if (_scan != null)
             IconButton(
-              icon: Icon(
-                _scan!['status'] == 'FINALIZED'
-                    ? Icons.picture_as_pdf_outlined
-                    : Icons.lock_outline,
-                color: _scan!['status'] == 'FINALIZED'
-                    ? LucidiaColors.teal
-                    : AppColors.textSecondary,
+              icon: const Icon(
+                Icons.picture_as_pdf_outlined,
+                color: LucidiaColors.teal,
               ),
-              tooltip: _scan!['status'] == 'FINALIZED'
-                  ? 'Download PDF Report'
-                  : 'Sign-off required to export',
-              onPressed: _scan!['status'] == 'FINALIZED' ? _downloadPdf : _openSignOffDialog,
+              tooltip: 'Download PDF Report',
+              onPressed: _downloadPdf,
             ),
         ],
       ),
@@ -211,7 +223,6 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
     final triage = scan['triage'] as Map<String, dynamic>? ?? {};
     final verification = scan['verification'] as Map<String, dynamic>? ?? {};
 
-    final isFinalized = scan['status'] == 'FINALIZED';
     final String modality = (scan['modality'] ?? 'CT_SERIES').toString().toUpperCase();
     final bool isExternal = modality == 'EXTERNAL_PHOTO';
     final int sliceCount = scan['sliceCount'] ?? 1;
@@ -233,40 +244,78 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Urgency Banner
+          // 1. Prominent AI Safety & Doctor Disclaimer Banner
+          _buildProminentDisclaimerBanner(),
+          const SizedBox(height: 14),
+
+          // 2. Urgency Banner
           _buildUrgencyBanner(level, isExternal),
           const SizedBox(height: 14),
 
-          // 2. Summary Card
-          _buildSummaryCard(scan, impression, isExternal, sliceCount),
+          // 3. Suspected Disease / Problem Summary Card
+          _buildSummaryCard(scan, impression, report, isExternal, sliceCount),
           const SizedBox(height: 14),
 
-          // 3. Plain-English Explanation
+          // 4. Plain-English Explanation
           if (patientFriendly.isNotEmpty) ...[
             _buildPatientExplanationCard(patientFriendly),
             const SizedBox(height: 14),
           ],
 
-          // 4. What To Do Next
+          // 5. What To Do Next
           _buildNextStepsCard(recommendations),
           const SizedBox(height: 14),
 
-          // 5. Image Viewer
+          // 6. Image Viewer with Bounding Box
           _buildImageViewer(sliceCount, triage, isExternal),
           const SizedBox(height: 14),
 
-          // 6. Findings by Region
+          // 7. Findings by Region (Clean, jargon-free)
           if (clinicalFindings.isNotEmpty) ...[
             _buildFindingsCard(clinicalFindings, isExternal),
             const SizedBox(height: 14),
           ],
 
-          // 7. Technical Details (collapsed)
-          _buildTechDetailsAccordion(triage, verification, confidence, sliceCount, generatedBy),
-          const SizedBox(height: 20),
+          // 8. Interactive Report Q&A Chat Box
+          _buildReportChatCard(),
+          const SizedBox(height: 14),
 
-          // 8. Sign-Off / Export
-          _buildSignOffCard(isFinalized, scan),
+          // 9. Direct Download Report Card
+          _buildDownloadCard(scan),
+          const SizedBox(height: 14),
+
+          // 10. Technical Details (collapsed accordion)
+          _buildTechDetailsAccordion(triage, verification, confidence, sliceCount, generatedBy),
+        ],
+      ),
+    );
+  }
+
+  // ── 0. Prominent AI Disclaimer ──────────────────────────────────────────
+  Widget _buildProminentDisclaimerBanner() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: LucidiaColors.teal.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: LucidiaColors.teal.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline, color: LucidiaColors.teal, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '⚠️ Notice: This analysis is AI-generated for informational guidance only and is NOT a definitive medical diagnosis. Please consult a qualified doctor or healthcare professional for clinical evaluation.',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 12,
+                height: 1.45,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -328,14 +377,19 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
   }
 
   // â”€â”€ 2. Summary Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── 2. Summary Card ──────────────────────────────────────────────────
   Widget _buildSummaryCard(
     Map<String, dynamic> scan,
     String impression,
+    Map<String, dynamic> report,
     bool isExternal,
     int sliceCount,
   ) {
     final String id = scan['id'] as String? ?? '--------';
     final String studyId = id.length >= 8 ? id.substring(0, 8).toUpperCase() : id.toUpperCase();
+    final String condition = (report['suspectedCondition'] as String?)?.trim().isNotEmpty == true
+        ? (report['suspectedCondition'] as String)
+        : impression;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -356,7 +410,7 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                 ),
               ),
               _pill(
-                isExternal ? 'External Photograph' : 'CT Study  Â·  $sliceCount slices',
+                isExternal ? 'Clinical Photograph' : 'CT Scan  ·  $sliceCount slices',
                 isExternal ? LucidiaColors.violet : LucidiaColors.teal,
               ),
             ],
@@ -365,7 +419,43 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
           Divider(height: 1, color: AppColors.border),
           const SizedBox(height: 14),
           Text(
-            'What the AI found:',
+            'SUSPECTED CONDITION / FINDING',
+            style: TextStyle(
+              color: LucidiaColors.teal,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: LucidiaColors.teal.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: LucidiaColors.teal.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.health_and_safety_outlined, color: LucidiaColors.teal, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    condition,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'What might be the problem:',
             style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 11,
@@ -373,36 +463,14 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
               letterSpacing: 0.6,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             impression,
             style: TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
               height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.info_outline, color: AppColors.textSecondary, size: 15),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'This is an AI-generated second-read tool. It does not replace a licensed clinician\'s diagnosis.',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 11, height: 1.4),
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -876,105 +944,203 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
   }
 
   // â”€â”€ 8. Sign-Off / Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  Widget _buildSignOffCard(bool isFinalized, Map<String, dynamic> scan) {
-    if (isFinalized) {
-      final String reviewer = scan['reviewerName'] as String? ?? 'Attending Clinician';
-      final String creds = scan['reviewerCredentials'] as String? ?? 'MD';
-      final String date = scan['finalizedAt'] as String? ?? '';
-
-      return Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: LucidiaColors.teal.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: LucidiaColors.teal.withValues(alpha: 0.4), width: 1.5),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.verified_outlined, color: LucidiaColors.teal, size: 22),
-                const SizedBox(width: 8),
-                Text(
-                  'Clinician Sign-Off Completed',
-                  style: TextStyle(
-                    color: LucidiaColors.teal,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Reviewed by $reviewer â€” $creds',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (date.isNotEmpty) ...[
-              const SizedBox(height: 2),
+  // ── 8. Interactive Report Q&A Chat Box ──────────────────────────────
+  Widget _buildReportChatCard() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: lucidiaCardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.forum_outlined, color: LucidiaColors.teal, size: 20),
+              const SizedBox(width: 8),
               Text(
-                'Finalized: $date',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                'ASK QUESTIONS ABOUT THIS REPORT',
+                style: TextStyle(
+                  color: LucidiaColors.teal,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
               ),
             ],
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _downloadPdf,
-                icon: const Icon(Icons.picture_as_pdf_outlined),
-                label: const Text('Export Signed PDF Report'),
-                style: ElevatedButton.styleFrom(backgroundColor: LucidiaColors.teal),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Ask our explainable AI anything about this scan in simple everyday terms.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+
+          // Quick prompt chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _chatChip('What does this condition mean?'),
+                const SizedBox(width: 8),
+                _chatChip('Is this urgent or serious?'),
+                const SizedBox(width: 8),
+                _chatChip('What questions should I ask my doctor?'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Message history list
+          if (_chatMessages.isNotEmpty) ...[
+            Container(
+              constraints: const BoxConstraints(maxHeight: 280),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _chatMessages.length,
+                itemBuilder: (ctx, i) {
+                  final msg = _chatMessages[i];
+                  final isUser = msg['role'] == 'user';
+                  return Align(
+                    alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                      decoration: BoxDecoration(
+                        color: isUser
+                            ? LucidiaColors.teal
+                            : AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(12),
+                        border: isUser ? null : Border.all(color: AppColors.border),
+                      ),
+                      child: Text(
+                        msg['text'] ?? '',
+                        style: TextStyle(
+                          color: isUser ? Colors.white : AppColors.textPrimary,
+                          fontSize: 13,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+
+          if (_askingQuestion) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: LucidiaColors.teal),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Lucidia AI is explaining...',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  ),
+                ],
               ),
             ),
           ],
-        ),
-      );
-    }
 
+          // Input Row
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _questionController,
+                  enabled: !_askingQuestion,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: _askQuestion,
+                  decoration: InputDecoration(
+                    hintText: 'Type your question here...',
+                    hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    filled: true,
+                    fillColor: AppColors.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: AppColors.border),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: _askingQuestion ? null : () => _askQuestion(_questionController.text),
+                icon: const Icon(Icons.send_rounded, color: LucidiaColors.teal),
+                tooltip: 'Send Question',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chatChip(String label) {
+    return ActionChip(
+      label: Text(label),
+      labelStyle: const TextStyle(color: LucidiaColors.teal, fontSize: 11, fontWeight: FontWeight.w600),
+      backgroundColor: LucidiaColors.teal.withValues(alpha: 0.10),
+      side: BorderSide(color: LucidiaColors.teal.withValues(alpha: 0.3)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      onPressed: _askingQuestion ? null : () => _askQuestion(label),
+    );
+  }
+
+  // ── 9. Direct Download Report Card ───────────────────────────────────
+  Widget _buildDownloadCard(Map<String, dynamic> scan) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: LucidiaColors.warning.withValues(alpha: 0.08),
+        color: LucidiaColors.teal.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: LucidiaColors.warning.withValues(alpha: 0.4), width: 1.5),
+        border: Border.all(color: LucidiaColors.teal.withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.draw_outlined, color: LucidiaColors.warning, size: 22),
+              const Icon(Icons.download_for_offline_outlined, color: LucidiaColors.teal, size: 22),
               const SizedBox(width: 8),
               Text(
-                'Clinician Sign-Off Required',
+                'Save & Download Your Report',
                 style: TextStyle(
-                  color: LucidiaColors.warning,
+                  color: LucidiaColors.teal,
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
-            'Before this report can be exported or shared, it must be reviewed and signed off by a licensed clinician. '
-            'This is a regulatory safety requirement.',
+            'Download the complete clean report as a PDF to save on your device or share with your doctor.',
             style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.45),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _openSignOffDialog,
-              icon: const Icon(Icons.edit_note_outlined),
-              label: const Text('Complete Clinician Sign-Off'),
-              style: ElevatedButton.styleFrom(backgroundColor: LucidiaColors.warning),
+              onPressed: _downloadPdf,
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('Download PDF Report'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: LucidiaColors.teal,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
             ),
           ),
         ],

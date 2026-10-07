@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 services:
 
@@ -27,11 +27,11 @@ services:
     ports:
       - "8001:8001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s   # model loading takes time
+      start_period: 90s   # model loading takes time
     # Uncomment for GPU support (requires nvidia-container-toolkit)
     # deploy:
     #   resources:

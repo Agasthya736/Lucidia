@@ -6,7 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:file_picker/file_picker.dart';
 
 class ScanService {
-  static const String baseUrl = "http://localhost:8080";
+  static const String baseUrl = "https://lucidia-backend-794373598684.asia-south1.run.app";
   static const String byokStorageKey = "custom_gemini_api_key";
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
@@ -189,13 +189,36 @@ class ScanService {
       Uri.parse('$baseUrl/api/scans/$id/report.pdf'),
       headers: {'Authorization': auth},
     );
-    if (response.statusCode == 428) {
-      throw Exception('Clinician review and sign-off is mandatory before downloading the report PDF.');
-    }
     if (response.statusCode != 200) {
       throw Exception('Download failed (${response.statusCode}): ${response.body}');
     }
     return response.bodyBytes;
+  }
+
+  Future<String> askQuestion(String id, String question) async {
+    final auth = await _authHeader();
+    final customKey = await getCustomApiKey();
+
+    final headers = {
+      'Authorization': auth,
+      'Content-Type': 'application/json',
+    };
+    if (customKey != null && customKey.isNotEmpty) {
+      headers['X-Gemini-Api-Key'] = customKey;
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/scans/$id/chat'),
+      headers: headers,
+      body: jsonEncode({'question': question}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to get answer (${response.statusCode})');
+    }
+
+    final data = jsonDecode(response.body);
+    return data['answer'] ?? 'No answer received.';
   }
 
   Future<void> deleteScan(String id) async {

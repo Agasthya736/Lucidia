@@ -51,6 +51,7 @@ public class ScanController {
     private final ReportPdfService reportPdfService;
     private final ImageStorageService imageStorageService;
     private final QuotaService quotaService;
+    private final com.lucidia.backend.synthesis.ReportSynthesisService reportSynthesisService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ScanController(
@@ -58,12 +59,14 @@ public class ScanController {
             UserRepository userRepository,
             ReportPdfService reportPdfService,
             ImageStorageService imageStorageService,
-            QuotaService quotaService) {
+            QuotaService quotaService,
+            com.lucidia.backend.synthesis.ReportSynthesisService reportSynthesisService) {
         this.scanService = scanService;
         this.userRepository = userRepository;
         this.reportPdfService = reportPdfService;
         this.imageStorageService = imageStorageService;
         this.quotaService = quotaService;
+        this.reportSynthesisService = reportSynthesisService;
     }
 
     private UUID currentUserId(Jwt jwt) {
@@ -193,15 +196,6 @@ public class ScanController {
         UUID userId = currentUserId(jwt);
         Scan scan = scanService.get(id, userId);
 
-        // Clinician sign-off is MANDATORY before report export
-        if (scan.getStatus() != Scan.Status.FINALIZED) {
-            return ResponseEntity.status(HttpStatus.PRECONDITION_REQUIRED)
-                    .body(Map.of(
-                            "error", "CLINICIAN_SIGN_OFF_REQUIRED",
-                            "message", "A documented clinician sign-off is mandatory before a report can be exported or shared."
-                    ));
-        }
-
         byte[] pdf = reportPdfService.generate(scan);
 
         String filename = String.format(
@@ -214,6 +208,27 @@ public class ScanController {
                         "attachment; filename=\"" + filename + "\"")
                 .contentLength(pdf.length)
                 .body(pdf);
+    }
+
+    @PostMapping("/{id}/chat")
+    public ResponseEntity<Map<String, String>> askQuestion(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID id,
+            @RequestBody Map<String, String> request,
+            @RequestHeader(value = "X-Gemini-Api-Key", required = false) String customApiKey) {
+
+        UUID userId = currentUserId(jwt);
+        Scan scan = scanService.get(id, userId);
+
+        String question = request.getOrDefault("question", "");
+        if (question.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Question cannot be empty"));
+        }
+
+        String reportJson = scan.getReportJson() != null ? scan.getReportJson() : "{}";
+        String answer = reportSynthesisService.answerQuestion(reportJson, question, customApiKey);
+
+        return ResponseEntity.ok(Map.of("answer", answer));
     }
 
     @DeleteMapping("/{id}")

@@ -3,9 +3,9 @@ spring:
     name: lucidia-backend
 
   datasource:
-    url: jdbc:postgresql://localhost:5433/lucidia?timezone=Asia/Kolkata
-    username: lucidia
-    password: lucidia_dev_password
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql:///${DB_NAME:lucidia}?socketFactory=com.google.cloud.sql.postgres.SocketFactory&cloudSqlInstance=${INSTANCE_CONNECTION_NAME:localhost:5433}&timezone=Asia/Kolkata}
+    username: ${DB_USER:${SPRING_DATASOURCE_USERNAME:lucidia}}
+    password: ${DB_PASS:${SPRING_DATASOURCE_PASSWORD:lucidia_dev_password}}
 
   jpa:
     hibernate:
@@ -24,7 +24,7 @@ spring:
             model: gemini-2.5-flash
 
 server:
-  port: 8080
+  port: ${PORT:8080}
 logging:
   level:
     org.springframework.security: TRACE
@@ -33,7 +33,7 @@ lucidia:
     secret: ${JWT_SECRET:this-is-a-dev-only-secret-change-before-any-real-deployment-32chars}
     expiration-minutes: 60
   imaging:
-    storage-path: ${IMAGE_STORAGE_PATH:./data/images}
+    storage-path: ${IMAGE_STORAGE_PATH:/data/images}
     encryption-key-ref: ${IMAGE_ENCRYPTION_KEY_REF:local-dev-only}
   edge-ai:
     triage-model-version: v0.1

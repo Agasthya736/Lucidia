@@ -323,16 +323,12 @@ public class ReportPdfService {
             }
 
             document.add(sigTable);
-        } else {
-            Paragraph pending = new Paragraph("PENDING CLINICIAN REVIEW AND SIGN-OFF", URGENT_FONT);
-            pending.setSpacingAfter(10);
-            document.add(pending);
         }
 
         Paragraph disclaimer = new Paragraph(
-                "IMPORTANT CLINICAL DECISION SUPPORT NOTICE: Lucidia is an assistive documentation and second-read "
-                        + "triage tool. It does not provide autonomous diagnostic decisions. Final clinical interpretation "
-                        + "and medical responsibility remain exclusively with the licensed signing clinician.",
+                "IMPORTANT SAFETY NOTICE: This report is AI-generated for educational and informational guidance only. "
+                        + "It is NOT an official medical diagnosis. Please consult a qualified doctor or healthcare specialist "
+                        + "for clinical evaluation, prescription, or medical decision-making.",
                 FOOTER_FONT);
         disclaimer.setAlignment(Element.ALIGN_JUSTIFIED);
         document.add(disclaimer);

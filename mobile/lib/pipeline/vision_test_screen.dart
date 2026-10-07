@@ -41,7 +41,7 @@ class _VisionTestScreenState extends State<VisionTestScreen> {
     try {
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://localhost:8080/api/test/vision'),
+        Uri.parse('https://lucidia-backend-794373598684.asia-south1.run.app/api/test/vision'),
       );
 
       String extension = file.extension?.toLowerCase() ?? 'jpg';

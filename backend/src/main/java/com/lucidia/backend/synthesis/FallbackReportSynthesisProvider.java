@@ -58,34 +58,33 @@ public class FallbackReportSynthesisProvider implements ReportSynthesisProvider 
                 List.of(0)
         ));
 
-        String impression = String.format("%s (approx. %.1f mm) involving %s. Correlate with clinical examination.",
-                lesionType, sizeMm, region);
+        String conditionGuess = "Possible " + lesionType.toLowerCase();
+        String impression = String.format("A %s was spotted on the %s.",
+                lesionType.toLowerCase(), region.toLowerCase());
 
         String severity = sizeMm >= 15.0 ? "URGENT" : (sizeMm >= 6.0 ? "FOLLOW_UP_RECOMMENDED" : "ROUTINE");
 
         String recommendations;
-        if (lesionType.toLowerCase().contains("verruca") || lesionType.toLowerCase().contains("verrucous")) {
+        if (lesionType.toLowerCase().contains("verruca") || lesionType.toLowerCase().contains("wart") || lesionType.toLowerCase().contains("verrucous")) {
             recommendations =
-                    "1. Outpatient clinical or dermatological evaluation for definitive diagnosis and treatment options (e.g., cryotherapy, topical salicylic acid/cantharidin, or keratolytic therapy).\n" +
-                    "2. Avoid picking, biting, or self-excising the lesion to prevent secondary bacterial infection or auto-inoculation.\n" +
-                    "3. Keep the area clean and dry. Seek prompt medical care if surrounding erythema, warmth, or purulent drainage develops.";
+                    "1. Schedule a routine in-person consultation with a dermatologist or general physician.\n" +
+                    "2. Avoid picking, scratching, or cutting the area to prevent irritation or spread.\n" +
+                    "3. Keep the skin clean and dry.";
         } else {
             recommendations =
-                    "1. In-person clinical physical examination and dermoscopic assessment by a qualified physician or dermatologist.\n" +
-                    "2. Monitor for warning signs (ABCDE criteria: Asymmetry, Border irregularity, Color changes, Diameter >6mm, Evolution/change).\n" +
-                    "3. Avoid topical irritants, scratching, or self-excision.";
+                    "1. Have a doctor or dermatologist inspect the area during a regular checkup.\n" +
+                    "2. Watch for any changes in color, size, or shape over time.\n" +
+                    "3. Avoid harsh chemicals or picking at the spot.";
         }
 
-        String executiveSummary = String.format("%s (approx. %.1f mm) in %s. Clinical evaluation advised.",
-                lesionType, sizeMm, region);
+        String executiveSummary = conditionGuess + " on " + region;
 
         String patientFriendly =
-                "A visible lesion measuring around " + sizeMm + " mm was identified on the " + region.toLowerCase() + ". " +
-                "Please have a physician or dermatologist look at it in person to confirm diagnosis and advise on appropriate care.";
+                "An area of interest was identified on the " + region.toLowerCase() + " that looks like a " + lesionType.toLowerCase() + ". " +
+                "This is an automated AI observation to help you explain what you see. We recommend showing it to a doctor or dermatologist for a proper in-person evaluation.";
 
         String responsibleAiNotice =
-                "RESPONSIBLE AI NOTICE: External clinical photograph evaluation is an automated visual screening aid only. " +
-                "It cannot replace direct in-person physical clinical examination, dermoscopy, or biopsy.";
+                "AI SAFETY DISCLAIMER: This analysis is AI-generated for informational guidance only and is NOT a medical diagnosis. Please consult a qualified doctor or healthcare professional.";
 
         return new GroundedReport(
                 regionalFindings,
@@ -142,41 +141,39 @@ public class FallbackReportSynthesisProvider implements ReportSynthesisProvider 
         }
 
         DetectedLesion top = findings.topLesions().get(0);
-        String impression = String.format("Suspected %s (approx. %.1f mm) in the %s.",
-                top.lesionType().toLowerCase(), top.sizeMm(), top.anatomicalRegion());
+        String conditionGuess = "Possible " + top.lesionType().toLowerCase();
+        String impression = String.format("Findings suggest a %s in the %s.",
+                top.lesionType().toLowerCase(), top.anatomicalRegion());
 
         String severity;
         String recommendations;
         if (top.sizeMm() >= 15.0 || top.confidence() > 0.92) {
             severity = "URGENT";
             recommendations =
-                    "1. Prompt multidisciplinary pulmonary / clinical evaluation.\n" +
-                    "2. Diagnostic contrast-enhanced chest CT recommended for precise tissue staging.\n" +
-                    "3. Correlate with previous imaging to assess interval growth rate.";
+                    "1. Schedule a prompt in-person appointment with a specialist or your primary care physician.\n" +
+                    "2. Take this scan and report to your doctor for physical correlation.\n" +
+                    "3. Monitor for any breathing changes or cough.";
         } else if (top.sizeMm() >= 6.0) {
             severity = "FOLLOW_UP_RECOMMENDED";
             recommendations =
-                    "1. Follow-up low-dose non-contrast chest CT in 3 to 6 months per Fleischner Society pulmonary nodule guidelines.\n" +
-                    "2. Retrieve and compare with any prior chest radiographs or CT studies.\n" +
-                    "3. Clinical correlation with patient smoking history and pulmonary symptoms.";
+                    "1. Discuss this result with your doctor at your next scheduled visit.\n" +
+                    "2. Your physician may recommend a routine follow-up scan in 3 to 6 months to ensure stability.\n" +
+                    "3. Mention any recent illness, fever, or history to your healthcare provider.";
         } else {
             severity = "ROUTINE";
             recommendations =
-                    "1. Clinical correlation; consider routine follow-up CT at 12 months for high-risk clinical profiles.\n" +
-                    "2. Standard preventive health monitoring.";
+                    "1. Routine annual health checkup.\n" +
+                    "2. Share with your doctor during standard preventive visits.";
         }
 
-        String executiveSummary = String.format("Abnormality noted: %.1f mm %s in %s. %s",
-                top.sizeMm(), top.lesionType().toLowerCase(), top.anatomicalRegion(),
-                severity.equals("URGENT") ? "Prompt clinical attention advised." : "Follow-up imaging recommended.");
+        String executiveSummary = conditionGuess + " in " + top.anatomicalRegion();
 
-        String patientFriendly = String.format("A small spot (approx. %.1f mm) was identified in the %s. " +
-                "Your doctor will likely suggest a follow-up scan in a few months to verify that it remains unchanged and stable.",
-                top.sizeMm(), top.anatomicalRegion());
+        String patientFriendly = String.format("An area of interest was spotted in the %s that looks like a %s. " +
+                "This is an automated AI observation and not a medical diagnosis. Please consult a qualified doctor to evaluate these findings in person.",
+                top.anatomicalRegion(), top.lesionType().toLowerCase());
 
         String responsibleAiNotice =
-                "CLINICAL DECISION SUPPORT NOTICE: Lucidia provides AI-assisted second-read CT documentation. " +
-                "It does NOT provide autonomous diagnostic decisions. Documented clinician review is mandatory.";
+                "AI SAFETY DISCLAIMER: This analysis is AI-generated for informational guidance only and is NOT a medical diagnosis. Please consult a qualified doctor or healthcare professional.";
 
         return new GroundedReport(
                 regionalFindings,

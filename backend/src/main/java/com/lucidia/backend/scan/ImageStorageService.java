@@ -14,13 +14,24 @@ public class ImageStorageService {
 
     private final Path storageRoot;
 
-    public ImageStorageService(@Value("${lucidia.imaging.storage-path}") String storagePath) {
-        this.storageRoot = Paths.get(storagePath);
+    public ImageStorageService(@Value("${lucidia.imaging.storage-path:/data/images}") String storagePath) {
+        Path resolved = Paths.get(storagePath);
         try {
-            Files.createDirectories(storageRoot);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to initialize image storage directory: " + storagePath, e);
+            Files.createDirectories(resolved);
+        } catch (Exception e) {
+            Path fallback = Paths.get(System.getProperty("user.home"), ".lucidia", "images");
+            try {
+                Files.createDirectories(fallback);
+                resolved = fallback;
+            } catch (Exception ex) {
+                resolved = Paths.get(System.getProperty("java.io.tmpdir"), "lucidia-images");
+                try {
+                    Files.createDirectories(resolved);
+                } catch (Exception ignored) {
+                }
+            }
         }
+        this.storageRoot = resolved;
     }
 
     public void save(UUID scanId, byte[] imageBytes) {

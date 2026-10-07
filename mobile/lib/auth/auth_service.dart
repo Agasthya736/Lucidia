@@ -14,6 +14,18 @@ class AuthService {
   static const String defaultServerClientId =
       '747503445476-3l387af9b2ttbeo8n0g80630dd5fo853.apps.googleusercontent.com';
 
+  /// Builds a GoogleSignIn instance that works on every platform.
+  /// - Web: needs `clientId`; the web plugin rejects `serverClientId`.
+  /// - Android/iOS: uses `serverClientId` so an ID token is issued for the backend.
+  GoogleSignIn _buildGoogleSignIn(String? serverClientId) {
+    final id = serverClientId ?? defaultServerClientId;
+    return GoogleSignIn(
+      clientId: kIsWeb ? id : null,
+      serverClientId: kIsWeb ? null : id,
+      scopes: const ['email', 'profile'],
+    );
+  }
+
   Future<void> login(String email, String password) async {
     final result = await _api.login(email, password);
     final token = result['token'] as String?;
@@ -42,10 +54,7 @@ class AuthService {
     }
 
     try {
-      final googleSignIn = GoogleSignIn(
-        serverClientId: serverClientId ?? defaultServerClientId,
-        scopes: const ['email', 'profile'],
-      );
+      final googleSignIn = _buildGoogleSignIn(serverClientId);
 
       final account = await googleSignIn.signIn();
       if (account == null) {
@@ -80,7 +89,7 @@ class AuthService {
 
   Future<void> logout() async {
     try {
-      final googleSignIn = GoogleSignIn();
+      final googleSignIn = _buildGoogleSignIn(null);
       if (await googleSignIn.isSignedIn()) {
         await googleSignIn.signOut();
       }
@@ -92,4 +101,4 @@ class AuthService {
     final token = await getToken();
     return token != null;
   }
-}
+}

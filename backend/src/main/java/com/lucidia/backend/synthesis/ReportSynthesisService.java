@@ -50,4 +50,15 @@ public class ReportSynthesisService {
         // Fallback provider
         return FallbackReportSynthesisProvider.createGroundedFromDetector(findings);
     }
+
+    public String answerQuestion(String reportJson, String question, String customApiKey) {
+        for (ReportSynthesisProvider p : providers) {
+            if (p instanceof GeminiReportSynthesisProvider geminiProvider) {
+                return geminiProvider.answerQuestion(reportJson, question, customApiKey);
+            }
+        }
+        return "Based on your scan, our AI observed the findings described in your report. " +
+               "Because Lucidia provides assistive informational screening, please share this report directly with your doctor " +
+               "so they can evaluate your symptoms in person and answer your specific medical questions.";
+    }
 }
