@@ -68,12 +68,17 @@ public class GeminiReportSynthesisProvider implements ReportSynthesisProvider {
     @Value("${spring.ai.google.genai.chat.options.model:gemini-2.5-flash}")
     private String defaultModel;
 
-    public GeminiReportSynthesisProvider(@Autowired(required = false) ChatClient.Builder chatClientBuilder) {
+    private final ConditionsCatalogService conditionsCatalogService;
+
+    public GeminiReportSynthesisProvider(
+            @Autowired(required = false) ChatClient.Builder chatClientBuilder,
+            @Autowired(required = false) ConditionsCatalogService conditionsCatalogService) {
         if (chatClientBuilder != null) {
             this.chatClient = chatClientBuilder.build();
         } else {
             this.chatClient = null;
         }
+        this.conditionsCatalogService = conditionsCatalogService;
     }
 
     @Override
@@ -293,9 +298,11 @@ public class GeminiReportSynthesisProvider implements ReportSynthesisProvider {
 
             String suspectedCondition = root.path("suspectedCondition").asText(impression);
             String patientFriendly = root.path("patientFriendlySummary").asText(impression);
-
-            // Detector confidence is strictly anchored to the detector's output
             double detectorConfidence = findings.overallConfidence();
+
+            List<PossibleCondition> possibleConditions = conditionsCatalogService != null
+                    ? conditionsCatalogService.getPossibleConditionsForFindings(findings)
+                    : List.of();
 
             return new GroundedReport(
                     regions,
@@ -307,12 +314,16 @@ public class GeminiReportSynthesisProvider implements ReportSynthesisProvider {
                     false,
                     suspectedCondition,
                     patientFriendly,
-                    "Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional."
+                    "Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional.",
+                    possibleConditions
             );
 
         } catch (Exception e) {
             log.warn("Failed to parse Gemini JSON output ({}). Using fallback parser.", e.getMessage());
-            return FallbackReportSynthesisProvider.createGroundedFromDetector(findings);
+            return FallbackReportSynthesisProvider.createGroundedFromDetector(
+                    findings,
+                    conditionsCatalogService != null ? conditionsCatalogService.getPossibleConditionsForFindings(findings) : List.of()
+            );
         }
     }
 

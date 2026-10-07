@@ -1,0 +1,174 @@
+{
+  "_meta": {
+    "notice": "REVIEW WITH A MEDICAL SOURCE BEFORE RELEASE",
+    "description": "Curated mapping of plain visual/imaging observation categories to 2-4 common potential conditions with neutral descriptions. For educational and informational purposes only. Not a medical diagnosis."
+  },
+  "categories": {
+    "RAISED_SKIN_AREA": {
+      "observation": "a raised skin area",
+      "reviewStatus": "REVIEW WITH A MEDICAL SOURCE BEFORE RELEASE",
+      "possibleConditions": [
+        {
+          "name": "Seborrheic keratosis",
+          "description": "A very common non-cancerous skin growth that often appears warty or slightly elevated."
+        },
+        {
+          "name": "Benign nevus (mole)",
+          "description": "A common collection of pigment cells forming a small, elevated spot."
+        },
+        {
+          "name": "Viral wart (verruca)",
+          "description": "A common harmless skin elevation caused by localized viral infection."
+        },
+        {
+          "name": "Dermatofibroma",
+          "description": "A firm, benign bump in the skin that often occurs following minor irritation."
+        }
+      ]
+    },
+    "REDDENED_AREA": {
+      "observation": "a reddened area",
+      "reviewStatus": "REVIEW WITH A MEDICAL SOURCE BEFORE RELEASE",
+      "possibleConditions": [
+        {
+          "name": "Contact dermatitis",
+          "description": "Localized skin irritation or inflammation triggered by an external substance."
+        },
+        {
+          "name": "Mild localized eczema",
+          "description": "A common inflammatory skin pattern causing dry, red, or irritated areas."
+        },
+        {
+          "name": "Superficial folliculitis",
+          "description": "Mild inflammation of surface hair follicles presenting as small red marks."
+        }
+      ]
+    },
+    "DARKER_PATCH": {
+      "observation": "a darker patch",
+      "reviewStatus": "REVIEW WITH A MEDICAL SOURCE BEFORE RELEASE",
+      "possibleConditions": [
+        {
+          "name": "Post-inflammatory hyperpigmentation",
+          "description": "Temporary localized darkening of the skin following a minor cut, scrape, or rash."
+        },
+        {
+          "name": "Solar lentigo (sun spot)",
+          "description": "A flat, darker spot resulting from ultraviolet sun exposure."
+        },
+        {
+          "name": "Pigmented mole (nevus)",
+          "description": "A typical concentration of melanocytes producing a darker area."
+        }
+      ]
+    },
+    "TEXTURE_VARIATION": {
+      "observation": "surface texture variation",
+      "reviewStatus": "REVIEW WITH A MEDICAL SOURCE BEFORE RELEASE",
+      "possibleConditions": [
+        {
+          "name": "Actinic keratosis",
+          "description": "A rough, scaly patch on sun-exposed skin that should be evaluated by a healthcare professional."
+        },
+        {
+          "name": "Xerosis (dry skin)",
+          "description": "Dry surface skin leading to flaking or localized roughness."
+        },
+        {
+          "name": "Mild localized plaque",
+          "description": "A chronic scaly skin pattern presenting as thickened patches."
+        }
+      ]
+    },
+    "TISSUE_DENSITY_VARIATION": {
+      "observation": "tissue density variation",
+      "reviewStatus": "REVIEW WITH A MEDICAL SOURCE BEFORE RELEASE",
+      "possibleConditions": [
+        {
+          "name": "Atelectasis (partial lung collapse)",
+          "description": "Temporary partial collapse or under-inflation of small airway regions."
+        },
+        {
+          "name": "Focal parenchymal consolidation",
+          "description": "Accumulation of inflammatory cellular fluid within lung tissue."
+        },
+        {
+          "name": "Reactive inflammatory change",
+          "description": "Localized immune or inflammatory response to recent airway irritation."
+        }
+      ]
+    },
+    "NODULE_LIKE_DENSITY": {
+      "observation": "nodule-like density",
+      "reviewStatus": "REVIEW WITH A MEDICAL SOURCE BEFORE RELEASE",
+      "possibleConditions": [
+        {
+          "name": "Benign granuloma",
+          "description": "A small area of tissue healing, frequently residual from past resolved inflammation."
+        },
+        {
+          "name": "Intrapulmonary lymph node",
+          "description": "A normal, healthy lymph node located within the lung parenchyma."
+        },
+        {
+          "name": "Hamartoma",
+          "description": "A benign, non-cancerous lung growth composed of disorganized normal tissue."
+        },
+        {
+          "name": "Solitary pulmonary nodule",
+          "description": "A discrete round density on imaging that requires clinical review and follow-up."
+        }
+      ]
+    },
+    "ASYMMETRY_AREA": {
+      "observation": "asymmetry area",
+      "reviewStatus": "REVIEW WITH A MEDICAL SOURCE BEFORE RELEASE",
+      "possibleConditions": [
+        {
+          "name": "Anatomical variation",
+          "description": "A benign difference in contour or shape between paired structures."
+        },
+        {
+          "name": "Dependent fluid accumulation",
+          "description": "Gravity-related pooling of fluid depending on patient positioning."
+        },
+        {
+          "name": "Post-infectious scarring",
+          "description": "Fibrotic tissue remaining after a previous chest or lung infection."
+        }
+      ]
+    },
+    "FOCAL_OPACITY": {
+      "observation": "focal opacity",
+      "reviewStatus": "REVIEW WITH A MEDICAL SOURCE BEFORE RELEASE",
+      "possibleConditions": [
+        {
+          "name": "Pneumonitis or focal pneumonia",
+          "description": "Infectious or non-infectious inflammatory response in lung tissue."
+        },
+        {
+          "name": "Mucus plugging",
+          "description": "A temporary accumulation of secretions in an airway causing localized density."
+        },
+        {
+          "name": "Localized pulmonary contusion",
+          "description": "Tissue response following minor chest trauma or coughing."
+        }
+      ]
+    },
+    "GENERAL_OBSERVATION": {
+      "observation": "general image feature",
+      "reviewStatus": "REVIEW WITH A MEDICAL SOURCE BEFORE RELEASE",
+      "possibleConditions": [
+        {
+          "name": "Benign localized tissue change",
+          "description": "A common visual feature frequently seen during standard imaging evaluations."
+        },
+        {
+          "name": "Reactive or post-inflammatory change",
+          "description": "Tissue responding to temporary inflammation, irritation, or healing."
+        }
+      ]
+    }
+  }
+}

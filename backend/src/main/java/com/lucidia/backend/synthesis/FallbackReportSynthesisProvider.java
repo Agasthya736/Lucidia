@@ -12,6 +12,12 @@ import com.lucidia.backend.triage.DetectedLesion;
 @Component
 public class FallbackReportSynthesisProvider implements ReportSynthesisProvider {
 
+    private final ConditionsCatalogService conditionsCatalogService;
+
+    public FallbackReportSynthesisProvider(ConditionsCatalogService conditionsCatalogService) {
+        this.conditionsCatalogService = conditionsCatalogService;
+    }
+
     @Override
     public String getProviderId() {
         return "fallback";
@@ -24,10 +30,17 @@ public class FallbackReportSynthesisProvider implements ReportSynthesisProvider 
 
     @Override
     public GroundedReport synthesize(AggregatedFindings findings, String customApiKey) {
-        return createGroundedFromDetector(findings);
+        List<PossibleCondition> possibleConditions = conditionsCatalogService != null
+                ? conditionsCatalogService.getPossibleConditionsForFindings(findings)
+                : List.of();
+        return createGroundedFromDetector(findings, possibleConditions);
     }
 
     public static GroundedReport createGroundedFromDetector(AggregatedFindings findings) {
+        return createGroundedFromDetector(findings, List.of());
+    }
+
+    public static GroundedReport createGroundedFromDetector(AggregatedFindings findings, List<PossibleCondition> possibleConditions) {
         if (findings.findingsByRegion().isEmpty() || findings.abnormalSlicesCount() == 0) {
             return GroundedReport.createCleanAutoSummary(findings);
         }
@@ -36,13 +49,13 @@ public class FallbackReportSynthesisProvider implements ReportSynthesisProvider 
                 .anyMatch(r -> r.toLowerCase().contains("cutaneous") || r.toLowerCase().contains("external") || r.toLowerCase().contains("soft tissue"));
 
         if (isExternalPhoto) {
-            return createExternalPhotoReport(findings);
+            return createExternalPhotoReport(findings, possibleConditions);
         }
 
-        return createCtRadiologyReport(findings);
+        return createCtRadiologyReport(findings, possibleConditions);
     }
 
-    private static GroundedReport createExternalPhotoReport(AggregatedFindings findings) {
+    private static GroundedReport createExternalPhotoReport(AggregatedFindings findings, List<PossibleCondition> possibleConditions) {
         List<RegionalFinding> regionalFindings = new ArrayList<>();
         DetectedLesion top = !findings.topLesions().isEmpty() ? findings.topLesions().get(0) : null;
 
@@ -86,11 +99,12 @@ public class FallbackReportSynthesisProvider implements ReportSynthesisProvider 
                 false,
                 executiveSummary,
                 patientFriendly,
-                responsibleAiNotice
+                responsibleAiNotice,
+                possibleConditions != null ? possibleConditions : List.of()
         );
     }
 
-    private static GroundedReport createCtRadiologyReport(AggregatedFindings findings) {
+    private static GroundedReport createCtRadiologyReport(AggregatedFindings findings, List<PossibleCondition> possibleConditions) {
         List<RegionalFinding> regionalFindings = new ArrayList<>();
 
         for (Map.Entry<String, List<DetectedLesion>> entry : findings.findingsByRegion().entrySet()) {
@@ -98,55 +112,54 @@ public class FallbackReportSynthesisProvider implements ReportSynthesisProvider 
             List<DetectedLesion> lesions = entry.getValue();
 
             StringBuilder desc = new StringBuilder();
-            List<Integer> sliceIdxs = new ArrayList<>();
-
+            List<Integer> slices = new ArrayList<>();
             for (DetectedLesion l : lesions) {
-                desc.append(String.format("Focal %s observed in the %s. ",
-                        l.lesionType().toLowerCase(), regionName));
+                if (desc.length() > 0) desc.append("; ");
+                desc.append(l.description());
             }
 
             regionalFindings.add(new RegionalFinding(
                     regionName,
                     "FINDINGS_DETECTED",
-                    desc.toString().trim(),
-                    sliceIdxs
+                    desc.toString(),
+                    slices
             ));
         }
 
-        if (!findings.findingsByRegion().containsKey("Mediastinum & Hila")) {
-            regionalFindings.add(new RegionalFinding(
-                    "Mediastinum & Hila",
-                    "NO_FINDINGS_DETECTED",
-                    "Unremarkable mediastinal contour and hilar structures.",
-                    List.of()
-            ));
-        }
-        if (!findings.findingsByRegion().containsKey("Pleura & Chest Wall")) {
-            regionalFindings.add(new RegionalFinding(
-                    "Pleura & Chest Wall",
-                    "NO_FINDINGS_DETECTED",
-                    "Clear pleural spaces bilaterally.",
-                    List.of()
-            ));
+        // Fill non-abnormal anatomical regions
+        List<String> expectedRegions = List.of("Right Lung", "Left Lung", "Mediastinum & Hila", "Pleura & Chest Wall");
+        for (String expected : expectedRegions) {
+            boolean exists = regionalFindings.stream().anyMatch(rf -> rf.region().equalsIgnoreCase(expected));
+            if (!exists) {
+                regionalFindings.add(new RegionalFinding(
+                        expected,
+                        "NO_FINDINGS_DETECTED",
+                        "Visualized anatomy unremarkable. No focal density alteration or fluid collection.",
+                        List.of()
+                ));
+            }
         }
 
-        DetectedLesion top = findings.topLesions().get(0);
+        DetectedLesion top = !findings.topLesions().isEmpty() ? findings.topLesions().get(0) : null;
+        if (top == null) {
+            return GroundedReport.createCleanAutoSummary(findings);
+        }
+
         String impression = "The tool detected features that may need attention. See a doctor.";
 
         String severity;
         String recommendations;
-        if (top.sizeMm() >= 15.0 || top.confidence() > 0.92) {
+
+        if (top.sizeMm() >= 10.0 || top.confidence() >= 0.90) {
             severity = "URGENT";
             recommendations =
-                    "1. Schedule a prompt in-person appointment with a doctor or specialist.\n" +
-                    "2. Take this scan and report to your doctor for clinical correlation.\n" +
-                    "3. Monitor for any breathing changes or cough.";
-        } else if (top.sizeMm() >= 6.0) {
+                    "1. Clinical consultation recommended.\n" +
+                    "2. Prompt in-person evaluation by a healthcare professional.";
+        } else if (top.sizeMm() >= 5.0 || top.confidence() >= 0.75) {
             severity = "FOLLOW_UP_RECOMMENDED";
             recommendations =
-                    "1. Discuss this result with your doctor at your next visit.\n" +
-                    "2. Your physician may recommend a follow-up scan in 3 to 6 months to ensure stability.\n" +
-                    "3. Mention any symptoms to your healthcare provider.";
+                    "1. Schedule routine clinical follow-up.\n" +
+                    "2. Consult your physician regarding these imaging observations.";
         } else {
             severity = "ROUTINE";
             recommendations =
@@ -173,7 +186,8 @@ public class FallbackReportSynthesisProvider implements ReportSynthesisProvider 
                 false,
                 executiveSummary,
                 patientFriendly,
-                responsibleAiNotice
+                responsibleAiNotice,
+                possibleConditions != null ? possibleConditions : List.of()
         );
     }
 }

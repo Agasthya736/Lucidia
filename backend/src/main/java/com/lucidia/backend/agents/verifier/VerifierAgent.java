@@ -35,7 +35,7 @@ public class VerifierAgent {
 
         // 1. Check for ungrounded abnormalities
         for (RegionalFinding rf : report.clinicalFindings()) {
-            if ("ABNORMAL".equalsIgnoreCase(rf.status())) {
+            if ("ABNORMAL".equalsIgnoreCase(rf.status()) || "FINDINGS_DETECTED".equalsIgnoreCase(rf.status())) {
                 boolean matched = false;
                 for (String detectedRegion : detectorFindings.findingsByRegion().keySet()) {
                     if (isRegionMatch(rf.region(), detectedRegion)) {

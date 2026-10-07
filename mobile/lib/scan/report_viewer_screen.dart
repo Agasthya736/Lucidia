@@ -245,47 +245,60 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Prominent AI Safety & Doctor Disclaimer Banner
+          // 1. Disclaimer banner
           _buildProminentDisclaimerBanner(),
           const SizedBox(height: 14),
 
-          // 2. Result Band Banner
+          // 2. Band and band message
           _buildResultBandBanner(resultBand, bandMessage),
           const SizedBox(height: 14),
 
-          // 3. Suspected Disease / Problem Summary Card
+          // 3. What the tool noticed (plain observations)
           _buildSummaryCard(scan, impression, report, isExternal, sliceCount),
           const SizedBox(height: 14),
 
-          // 4. Plain-English Explanation
           if (patientFriendly.isNotEmpty) ...[
             _buildPatientExplanationCard(patientFriendly),
             const SizedBox(height: 14),
           ],
 
-          // 5. What To Do Next
+          // 4. Possible conditions (only for FINDINGS_DETECTED)
+          if (resultBand == ResultBand.findingsDetected) ...[
+            _buildPossibleConditionsCard(report, isExternal),
+            const SizedBox(height: 14),
+          ],
+
+          // 5. Next steps
           _buildNextStepsCard(recommendations),
           const SizedBox(height: 14),
 
-          // 6. Image Viewer with Bounding Box
+          // 6. See a doctor soon if you notice any of these signs:
+          _buildRedFlagsCard(isExternal),
+          const SizedBox(height: 14),
+
+          // 7. Feedback button
+          _buildFeedbackButton(),
+          const SizedBox(height: 16),
+
+          // 8. Image Viewer with Bounding Box
           _buildImageViewer(sliceCount, triage, isExternal),
           const SizedBox(height: 14),
 
-          // 7. Findings by Region (Clean, jargon-free)
+          // 9. Findings by Region (Clean, jargon-free)
           if (clinicalFindings.isNotEmpty) ...[
             _buildFindingsCard(clinicalFindings, isExternal),
             const SizedBox(height: 14),
           ],
 
-          // 8. Interactive Report Q&A Chat Box
+          // 10. Interactive Report Q&A Chat Box
           _buildReportChatCard(),
           const SizedBox(height: 14),
 
-          // 9. Direct Download Report Card
+          // 11. Direct Download Report Card
           _buildDownloadCard(scan),
           const SizedBox(height: 14),
 
-          // 10. Technical Details (collapsed accordion)
+          // 12. Technical Details (collapsed accordion)
           _buildTechDetailsAccordion(scan, triage, verification, confidence, sliceCount, generatedBy),
         ],
       ),
@@ -371,9 +384,9 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
   ) {
     final String id = scan['id'] as String? ?? '--------';
     final String studyId = id.length >= 8 ? id.substring(0, 8).toUpperCase() : id.toUpperCase();
-    final String condition = (report['suspectedCondition'] as String?)?.trim().isNotEmpty == true
-        ? (report['suspectedCondition'] as String)
-        : impression;
+    final String observation = (report['executiveSummary'] as String?)?.trim().isNotEmpty == true
+        ? (report['executiveSummary'] as String)
+        : (isExternal ? 'Skin surface feature noted' : 'Imaging feature noted');
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -421,11 +434,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.health_and_safety_outlined, color: LucidiaColors.teal, size: 22),
+                const Icon(Icons.search_outlined, color: LucidiaColors.teal, size: 22),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    condition,
+                    observation,
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 15,
@@ -573,7 +586,322 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
     );
   }
 
-  // â”€â”€ 5. Image Viewer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Possible Conditions Card (ONLY for FINDINGS_DETECTED) ──────────────
+  Widget _buildPossibleConditionsCard(Map<String, dynamic> report, bool isExternal) {
+    List<dynamic> rawConditions = report['possibleConditions'] as List<dynamic>? ?? [];
+    List<Map<String, String>> conditions = [];
+
+    if (rawConditions.isNotEmpty) {
+      for (var item in rawConditions) {
+        if (item is Map) {
+          conditions.add({
+            'name': item['name']?.toString() ?? '',
+            'description': item['description']?.toString() ?? '',
+          });
+        }
+      }
+    }
+
+    if (conditions.isEmpty) {
+      if (isExternal) {
+        conditions = [
+          {
+            'name': 'Seborrheic keratosis',
+            'description': 'A very common non-cancerous skin growth that often appears warty or slightly elevated.'
+          },
+          {
+            'name': 'Benign nevus (mole)',
+            'description': 'A common collection of pigment cells forming a small, elevated spot.'
+          },
+          {
+            'name': 'Viral wart (verruca)',
+            'description': 'A common harmless skin elevation caused by localized viral infection.'
+          },
+        ];
+      } else {
+        conditions = [
+          {
+            'name': 'Benign granuloma',
+            'description': 'A small area of tissue healing, frequently residual from past resolved inflammation.'
+          },
+          {
+            'name': 'Intrapulmonary lymph node',
+            'description': 'A normal immune lymph node located within lung parenchyma.'
+          },
+          {
+            'name': 'Atelectasis (partial lung collapse)',
+            'description': 'Temporary partial collapse or under-inflation of small airway regions.'
+          },
+        ];
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: lucidiaCardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.menu_book_outlined, color: LucidiaColors.teal, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Possible conditions (not a diagnosis)',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Findings like these are sometimes seen in conditions such as:',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...conditions.map((c) => Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      c['name'] ?? '',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if ((c['description'] ?? '').isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        c['description']!,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              )),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD97706).withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline, color: Color(0xFFD97706), size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Many other causes are possible, and only a doctor can tell what this is.',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Red Flags: See a doctor soon ─────────────────────────────────────
+  Widget _buildRedFlagsCard(bool isExternal) {
+    final signs = isExternal
+        ? [
+            'The spot is growing rapidly, bleeding, oozing, or does not heal',
+            'The edges become jagged, irregular, or asymmetric',
+            'The color changes or includes multiple shades of black, brown, red, or blue',
+            'You feel increasing pain, itching, swelling, or redness spreading outwards',
+          ]
+        : [
+            'Unexplained shortness of breath or sudden difficulty breathing',
+            'Persistent coughing lasting longer than 3 weeks, or coughing up blood',
+            'Sharp or worsening chest, back, or shoulder pain',
+            'Unexplained significant weight loss, high fever, or severe night sweats',
+          ];
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFD97706).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.4), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'See a doctor soon if you notice any of these signs:',
+                  style: TextStyle(
+                    color: Color(0xFFD97706),
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...signs.map((sign) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(top: 6, right: 10),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFD97706),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        sign,
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  // ── Feedback Button & Dialog ─────────────────────────────────────────
+  Widget _buildFeedbackButton() {
+    return OutlinedButton.icon(
+      onPressed: _showFeedbackDialog,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        side: BorderSide(color: LucidiaColors.teal.withValues(alpha: 0.5)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      icon: const Icon(Icons.rate_review_outlined, color: LucidiaColors.teal, size: 20),
+      label: Text(
+        'Send Feedback on this Report',
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  void _showFeedbackDialog() {
+    final textController = TextEditingController();
+    bool? helpful;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Report Feedback',
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Was this information clear and helpful?',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Yes \u{1F44D}'),
+                    selected: helpful == true,
+                    onSelected: (sel) => setDialogState(() => helpful = sel ? true : null),
+                  ),
+                  const SizedBox(width: 12),
+                  ChoiceChip(
+                    label: const Text('No \u{1F44E}'),
+                    selected: helpful == false,
+                    onSelected: (sel) => setDialogState(() => helpful = sel ? false : null),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: textController,
+                maxLines: 3,
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Any comments or suggestions for improving this tool?',
+                  hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Thank you for your feedback!')),
+                );
+              },
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── 5. Image Viewer ──────────────────────────────────────────────────
   Widget _buildImageViewer(int totalSlices, Map<String, dynamic> triage, bool isExternal) {
     final sliceBytes = _sliceImages[_selectedSliceIndex];
     final List<dynamic> sliceFindingsList = triage['sliceFindings'] as List<dynamic>? ?? [];

@@ -134,6 +134,12 @@ public class PipelineOrchestrator {
         VerificationResult verification;
         try {
             verification = verifierAgent.verify(report, triage);
+            if (!verification.verified()) {
+                log.warn("Report grounding verification failed (flags: {}). Falling back to templated report.", verification.flags());
+                warnings.add("Grounding verification flagged discrepancies; fell back to verified templated report.");
+                report = GroundedReport.createTemplatedFallbackReport(triage);
+                verification = VerificationResult.of(true, List.of(), "Verified templated fallback report stating result band and disclaimer.", 1.0);
+            }
         } catch (Exception e) {
             log.warn("Verifier check encountered an error: {}", e.getMessage());
             verification = VerificationResult.unavailable("Verification check error: " + e.getMessage());

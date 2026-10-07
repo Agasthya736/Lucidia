@@ -13,7 +13,8 @@ public record GroundedReport(
         boolean isAutoSummary,
         String executiveSummary,
         String patientFriendlySummary,
-        String responsibleAiNotice
+        String responsibleAiNotice,
+        List<PossibleCondition> possibleConditions
 ) {
     public GroundedReport(
             List<RegionalFinding> clinicalFindings,
@@ -33,7 +34,34 @@ public record GroundedReport(
                 isAutoSummary,
                 impression,
                 impression,
-                "EDUCATIONAL USE NOTICE: Lucidia provides AI-assisted image analysis for informational purposes only. Always consult a qualified healthcare professional for medical decisions."
+                "Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional.",
+                List.of()
+        );
+    }
+
+    public GroundedReport(
+            List<RegionalFinding> clinicalFindings,
+            String impression,
+            String severity,
+            double detectorConfidence,
+            String recommendations,
+            String generatedBy,
+            boolean isAutoSummary,
+            String executiveSummary,
+            String patientFriendlySummary,
+            String responsibleAiNotice) {
+        this(
+                clinicalFindings,
+                impression,
+                severity,
+                detectorConfidence,
+                recommendations,
+                generatedBy,
+                isAutoSummary,
+                executiveSummary,
+                patientFriendlySummary,
+                responsibleAiNotice,
+                List.of()
         );
     }
 
@@ -51,13 +79,14 @@ public record GroundedReport(
                 regions,
                 impression,
                 "ROUTINE",
-                findings.overallConfidence(),
+                findings != null ? findings.overallConfidence() : 0.88,
                 "Routine follow-up as appropriate. If you experience symptoms, consult a doctor.",
                 "Triage Auto-Summary",
                 true,
                 "No focal features detected across visualized chest areas.",
                 "The tool did not detect the features it looks for. This is NOT a clearance. If you have symptoms, see a doctor.",
-                "Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional."
+                "Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional.",
+                List.of()
         );
     }
 
@@ -72,13 +101,36 @@ public record GroundedReport(
                 regions,
                 impression,
                 "ROUTINE",
-                findings.overallConfidence(),
+                findings != null ? findings.overallConfidence() : 0.88,
                 "Routine skin observation. Please see a doctor if you notice changing spots, pain, or irritation.",
                 "Triage Auto-Summary",
                 true,
                 "No focal skin features detected on the photograph.",
                 "The tool did not detect the features it looks for. This is NOT a clearance. If you have symptoms, see a doctor.",
-                "Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional."
+                "Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional.",
+                List.of()
+        );
+    }
+
+    public static GroundedReport createTemplatedFallbackReport(AggregatedFindings findings) {
+        String band = findings != null ? findings.resultBand() : "INCONCLUSIVE";
+        String bandMsg = findings != null ? findings.bandMessage() : "Could not assess this image. Please see a doctor if you are concerned.";
+        double conf = findings != null ? findings.overallConfidence() : 0.50;
+
+        return new GroundedReport(
+                List.of(),
+                bandMsg,
+                "FINDINGS_DETECTED".equals(band) ? "FOLLOW_UP_RECOMMENDED" : "ROUTINE",
+                conf,
+                "FINDINGS_DETECTED".equals(band)
+                        ? "Please see a doctor or qualified healthcare professional."
+                        : "Consult a healthcare professional if you have concerns or symptoms.",
+                "Templated Fallback Summary",
+                true,
+                bandMsg,
+                bandMsg,
+                "Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional.",
+                List.of()
         );
     }
 }

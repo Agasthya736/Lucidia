@@ -69,6 +69,10 @@ public record AggregatedFindings(
         };
     }
 
+    public String resultBand() {
+        return mapToResultBand(overallStatus);
+    }
+
     public boolean isHighConfidenceClean(double confidenceThreshold) {
         return BAND_NO_FINDINGS_DETECTED.equalsIgnoreCase(mapToResultBand(overallStatus))
                 && overallConfidence >= confidenceThreshold;
