@@ -206,7 +206,7 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
           Expanded(
             child: _modalityTab(
               id: 'EXTERNAL_PHOTO',
-              label: 'External Clinical Photo',
+              label: 'Photo Analysis',
               icon: Icons.camera_alt_outlined,
             ),
           ),
@@ -282,10 +282,10 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
                 const SizedBox(height: 4),
                 Text(
                   isExternal
-                      ? 'Upload clinical photographs of visible external findings (skin lesions, swellings, wounds, rashes). '
-                        'Non-clinical images (memes, pets, screenshots) are automatically rejected by our safety filter. '
-                        'Please crop out non-clinical facial markers.'
-                      : 'Upload axial CT series slices. High-confidence clean scans bypass LLM synthesis to conserve resources. Professional review is required for diagnostic decisions.',
+                      ? 'Upload photographs of visible external areas (skin, wounds, rashes, swellings). '
+                        'Non-clinical images (memes, pets, screenshots) are automatically rejected by our safety filter.'
+                      : 'Upload CT scan slice images for AI-assisted analysis. '
+                        'Results are for informational purposes only — always discuss findings with your doctor.',
                   style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 11, height: 1.4),
                 ),
               ],

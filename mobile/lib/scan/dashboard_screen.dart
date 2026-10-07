@@ -17,10 +17,10 @@ class DashboardScreen extends StatefulWidget {
   });
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  State<DashboardScreen> createState() => DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class DashboardScreenState extends State<DashboardScreen> {
   final ScanService _scanService = ScanService();
   List<Map<String, dynamic>> _scans = [];
   bool _loading = true;
@@ -29,10 +29,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    load();
   }
 
-  Future<void> _load() async {
+  Future<void> load() async {
     setState(() {
       _loading = true;
       _error = null;
@@ -90,7 +90,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: _load,
+        onRefresh: load,
         color: LucidiaColors.teal,
         backgroundColor: LucidiaColors.surfaceElevated,
         child: SingleChildScrollView(
@@ -240,7 +240,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             : ReportViewerScreen(scanId: scan['id']);
                         Navigator.of(context, rootNavigator: true)
                             .push(MaterialPageRoute(builder: (_) => target))
-                            .then((_) => _load());
+                            .then((_) => load());
                       },
                       child: Container(
                         padding: const EdgeInsets.all(16),

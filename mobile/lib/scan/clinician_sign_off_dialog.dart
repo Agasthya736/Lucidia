@@ -2,44 +2,43 @@ import 'package:flutter/material.dart';
 import '../shared/theme.dart';
 import 'scan_service.dart';
 
-class ClinicianSignOffDialog extends StatefulWidget {
+/// Dialog that lets users optionally add personal notes before marking
+/// a report as reviewed, then unlocking the PDF export.
+/// Name and credentials are entirely optional for this educational app.
+class ReviewConfirmDialog extends StatefulWidget {
   final String scanId;
-  final Function(Map<String, dynamic> updatedScan) onSignedOff;
+  final Function(Map<String, dynamic> updatedScan) onConfirmed;
 
-  const ClinicianSignOffDialog({
+  const ReviewConfirmDialog({
     super.key,
     required this.scanId,
-    required this.onSignedOff,
+    required this.onConfirmed,
   });
 
   @override
-  State<ClinicianSignOffDialog> createState() => _ClinicianSignOffDialogState();
+  State<ReviewConfirmDialog> createState() => _ReviewConfirmDialogState();
 }
 
-class _ClinicianSignOffDialogState extends State<ClinicianSignOffDialog> {
+class _ReviewConfirmDialogState extends State<ReviewConfirmDialog> {
   final ScanService _scanService = ScanService();
-  final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
-  final _credsController = TextEditingController();
   final _notesController = TextEditingController();
 
-  bool _confirmedReview = false;
+  bool _confirmedRead = false;
   bool _submitting = false;
   String? _error;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _credsController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (!_confirmedReview) {
-      setState(() => _error = 'Please check the confirmation box to certify clinical review.');
+    if (!_confirmedRead) {
+      setState(() => _error = 'Please confirm that you have read the disclaimer above.');
       return;
     }
 
@@ -52,12 +51,12 @@ class _ClinicianSignOffDialogState extends State<ClinicianSignOffDialog> {
       final updated = await _scanService.finalizeScan(
         id: widget.scanId,
         reviewerName: _nameController.text.trim(),
-        reviewerCredentials: _credsController.text.trim(),
+        reviewerCredentials: '',
         notes: _notesController.text.trim(),
       );
 
       if (!mounted) return;
-      widget.onSignedOff(updated);
+      widget.onConfirmed(updated);
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
@@ -74,10 +73,10 @@ class _ClinicianSignOffDialogState extends State<ClinicianSignOffDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Row(
         children: [
-          const Icon(Icons.verified_user, color: LucidiaColors.teal, size: 24),
+          const Icon(Icons.check_circle_outline, color: LucidiaColors.teal, size: 24),
           const SizedBox(width: 10),
           Text(
-            'Report Sign-Off',
+            'Mark as Reviewed',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: LucidiaColors.textPrimary),
           ),
         ],
@@ -85,85 +84,100 @@ class _ClinicianSignOffDialogState extends State<ClinicianSignOffDialog> {
       content: SizedBox(
         width: 480,
         child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: LucidiaColors.teal.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: LucidiaColors.teal.withValues(alpha: 0.3)),
-                  ),
-                  child: Text(
-                    'Lucidia is an assistive documentation tool, not an autonomous diagnostic system. '
-                    'Documented sign-off is mandatory before this report can be exported or shared.',
-                    style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12, height: 1.4),
-                  ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Prominent disclaimer
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: LucidiaColors.warning.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: LucidiaColors.warning.withValues(alpha: 0.4)),
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name *',
-                    hintText: 'e.g. Dr. Sarah Jenkins, MD',
-                    prefixIcon: Icon(Icons.person_outline),
-                  ),
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Name is required' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _credsController,
-                  decoration: const InputDecoration(
-                    labelText: 'Credentials & Medical License *',
-                    hintText: 'e.g. Board Certified Radiologist, Lic #49281',
-                    prefixIcon: Icon(Icons.badge_outlined),
-                  ),
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Credentials are required' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _notesController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Clinical Notes / Amendments (Optional)',
-                    hintText: 'Additional clinical correlation or recommendations...',
-                    prefixIcon: Icon(Icons.edit_note),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                InkWell(
-                  onTap: () => setState(() => _confirmedReview = !_confirmedReview),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Checkbox(
-                          value: _confirmedReview,
-                          activeColor: LucidiaColors.teal,
-                          onChanged: (val) => setState(() => _confirmedReview = val ?? false),
-                        ),
-                        Expanded(
-                          child: Text(
-                            'I confirm that I have personally reviewed this CT series, evaluated the findings, and approved this report.',
-                            style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13, height: 1.3),
+                        Icon(Icons.info_outline, color: LucidiaColors.warning, size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Educational Use Only',
+                          style: TextStyle(
+                            color: LucidiaColors.warning,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'This AI report is for informational and educational purposes only. '
+                      'It is NOT a medical diagnosis. Always consult a qualified doctor '
+                      'or healthcare professional before making any health decisions.',
+                      style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Optional name field
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Your Name (optional)',
+                  hintText: 'e.g. John Doe',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Optional personal notes
+              TextField(
+                controller: _notesController,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Personal Notes (optional)',
+                  hintText: 'Questions to ask your doctor, follow-up reminders, etc.',
+                  prefixIcon: Icon(Icons.edit_note),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Confirmation checkbox
+              InkWell(
+                onTap: () => setState(() => _confirmedRead = !_confirmedRead),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Checkbox(
+                        value: _confirmedRead,
+                        activeColor: LucidiaColors.teal,
+                        onChanged: (val) => setState(() => _confirmedRead = val ?? false),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'I understand that this is an AI-generated report for informational '
+                          'purposes only and is not a substitute for professional medical advice.',
+                          style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13, height: 1.3),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Text(_error!, style: const TextStyle(color: LucidiaColors.error, fontSize: 12)),
-                ],
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(_error!, style: const TextStyle(color: LucidiaColors.error, fontSize: 12)),
               ],
-            ),
+            ],
           ),
         ),
       ),
@@ -184,9 +198,12 @@ class _ClinicianSignOffDialogState extends State<ClinicianSignOffDialog> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
-              : const Text('Sign Off & Unlock Export'),
+              : const Text('Confirm & Download Report'),
         ),
       ],
     );
   }
 }
+
+/// Backwards-compatible alias — existing callers that use ClinicianSignOffDialog still compile.
+typedef ClinicianSignOffDialog = ReviewConfirmDialog;

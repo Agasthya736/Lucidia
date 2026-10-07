@@ -4,6 +4,8 @@ import 'auth/login_screen.dart';
 import 'navigation/main_shell_screen.dart';
 import 'theme/lucidia_theme.dart';
 
+import 'l10n/app_localizations.dart';
+
 void main() {
   runApp(const LucidiaApp());
 }
@@ -45,6 +47,11 @@ class _LucidiaAppState extends State<LucidiaApp> {
           theme: LucidiaTheme.light,
           darkTheme: LucidiaTheme.dark,
           themeMode: themeMode,
+
+          // Localization delegates — English + Tamil
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+
           home: _checkingAuth
               ? Scaffold(
                   body: Center(

@@ -14,19 +14,27 @@ class MainShellScreen extends StatefulWidget {
 
 class _MainShellScreenState extends State<MainShellScreen> {
   int _currentIndex = 0;
+  final GlobalKey<DashboardScreenState> _dashboardKey = GlobalKey<DashboardScreenState>();
+  final GlobalKey<ScansListScreenState> _scansListKey = GlobalKey<ScansListScreenState>();
 
   void _onTabSelected(int index) {
     setState(() => _currentIndex = index);
+    if (index == 0) {
+      _dashboardKey.currentState?.load();
+    } else if (index == 1) {
+      _scansListKey.currentState?.load();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       DashboardScreen(
+        key: _dashboardKey,
         onNewScanTap: () => _onTabSelected(2),
         onViewAllScansTap: () => _onTabSelected(1),
       ),
-      const ScansListScreen(),
+      ScansListScreen(key: _scansListKey),
       const ScanCaptureScreen(),
       const ProfileScreen(),
     ];

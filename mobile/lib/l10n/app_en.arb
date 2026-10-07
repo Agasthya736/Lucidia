@@ -1,0 +1,170 @@
+{
+  "@@locale": "en",
+
+  "appName": "Lucidia",
+  "@appName": { "description": "The name of the application" },
+
+  "loginTitle": "Welcome to Lucidia",
+  "@loginTitle": { "description": "Login screen heading" },
+
+  "loginSubtitle": "AI-powered image analysis for educational insights",
+  "@loginSubtitle": { "description": "Login screen subtitle" },
+
+  "signInWithGoogle": "Continue with Google",
+  "@signInWithGoogle": { "description": "Google sign-in button label" },
+
+  "signInWithEmail": "Sign In with Email",
+  "@signInWithEmail": { "description": "Email sign-in button label" },
+
+  "emailLabel": "Email",
+  "@emailLabel": { "description": "Email input label" },
+
+  "passwordLabel": "Password",
+  "@passwordLabel": { "description": "Password input label" },
+
+  "dashboardTitle": "Dashboard",
+  "@dashboardTitle": { "description": "Dashboard screen title" },
+
+  "totalScans": "Total Scans",
+  "@totalScans": { "description": "Dashboard metric: total scans" },
+
+  "pendingReview": "Pending Review",
+  "@pendingReview": { "description": "Dashboard metric: scans pending review" },
+
+  "finalized": "Finalized",
+  "@finalized": { "description": "Dashboard metric: finalized scans" },
+
+  "recentScans": "Recent Scans",
+  "@recentScans": { "description": "Dashboard section heading for recent scans" },
+
+  "noScansYet": "No scans uploaded yet",
+  "@noScansYet": { "description": "Empty state for no scans" },
+
+  "submitNewScan": "Submit New Scan",
+  "@submitNewScan": { "description": "CTA button to start a new scan" },
+
+  "viewAll": "View All",
+  "@viewAll": { "description": "Link to view all scans" },
+
+  "scansAndReports": "Scans & Reports",
+  "@scansAndReports": { "description": "Scans list screen title" },
+
+  "newCtStudy": "New CT Study",
+  "@newCtStudy": { "description": "New CT scan screen title" },
+
+  "photoAnalysis": "Photo Analysis",
+  "@photoAnalysis": { "description": "External photo analysis screen title" },
+
+  "analyzePhoto": "Analyze Photograph",
+  "@analyzePhoto": { "description": "Submit button for external photo" },
+
+  "runAnalysis": "Run AI Analysis",
+  "@runAnalysis": { "description": "Submit button for CT scan" },
+
+  "profileAndSettings": "Profile & Settings",
+  "@profileAndSettings": { "description": "Profile screen title" },
+
+  "monthlyQuota": "Monthly Scan Quota",
+  "@monthlyQuota": { "description": "Quota card heading" },
+
+  "scansUsed": "{used} of {total} scans used this month",
+  "@scansUsed": {
+    "description": "Quota usage string",
+    "placeholders": {
+      "used": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+
+  "remaining": "{count} remaining",
+  "@remaining": {
+    "description": "Remaining scans count",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "logOut": "Log Out",
+  "@logOut": { "description": "Log out button" },
+
+  "darkMode": "Dark Mode",
+  "@darkMode": { "description": "Dark mode toggle label" },
+
+  "lightMode": "Light Mode",
+  "@lightMode": { "description": "Light mode toggle label" },
+
+  "aiPipeline": "AI Pipeline",
+  "@aiPipeline": { "description": "Pipeline info card heading on profile" },
+
+  "legalAndDisclaimers": "Legal & Disclaimers",
+  "@legalAndDisclaimers": { "description": "Compliance card heading" },
+
+  "privacyPolicy": "Privacy Policy & Data Handling",
+  "@privacyPolicy": { "description": "Privacy policy menu item" },
+
+  "educationalDisclaimer": "Educational Use Disclaimer",
+  "@educationalDisclaimer": { "description": "Disclaimer menu item" },
+
+  "educationalDisclaimerBody": "This AI report is for informational and educational purposes only. It is NOT a medical diagnosis. Always consult a qualified doctor or healthcare professional before making any health decisions.",
+  "@educationalDisclaimerBody": { "description": "Full educational disclaimer text" },
+
+  "reportViewerTitle": "Scan Report",
+  "@reportViewerTitle": { "description": "Report viewer screen title" },
+
+  "downloadPdf": "Download PDF Report",
+  "@downloadPdf": { "description": "PDF download button" },
+
+  "aiNoticeShort": "⚠️ Notice: This analysis is AI-generated for informational guidance only and is NOT a definitive medical diagnosis. Please consult a qualified doctor or healthcare professional for clinical evaluation.",
+  "@aiNoticeShort": { "description": "Short AI disclaimer shown at top of report" },
+
+  "urgentFinding": "⚠️  Significant Finding Detected",
+  "@urgentFinding": { "description": "Urgency banner: urgent level" },
+
+  "followUpRecommended": "🔔  Follow-Up Recommended",
+  "@followUpRecommended": { "description": "Urgency banner: follow-up level" },
+
+  "noSignificantConcerns": "✅  No Significant Concerns",
+  "@noSignificantConcerns": { "description": "Urgency banner: routine level" },
+
+  "suspectedCondition": "SUSPECTED CONDITION / FINDING",
+  "@suspectedCondition": { "description": "Report section label" },
+
+  "inPlainEnglish": "IN PLAIN LANGUAGE",
+  "@inPlainEnglish": { "description": "Patient-friendly summary section label" },
+
+  "whatToDoNext": "WHAT TO DO NEXT",
+  "@whatToDoNext": { "description": "Recommendations section label" },
+
+  "askQuestionsAboutReport": "ASK QUESTIONS ABOUT THIS REPORT",
+  "@askQuestionsAboutReport": { "description": "Q&A chat section label" },
+
+  "typeYourQuestion": "Type your question here...",
+  "@typeYourQuestion": { "description": "Q&A input hint" },
+
+  "markAsReviewed": "Mark as Reviewed",
+  "@markAsReviewed": { "description": "Review confirm dialog title" },
+
+  "confirmAndDownload": "Confirm & Download Report",
+  "@confirmAndDownload": { "description": "Review confirm dialog submit button" },
+
+  "cancel": "Cancel",
+  "@cancel": { "description": "Generic cancel button" },
+
+  "retry": "Retry",
+  "@retry": { "description": "Generic retry button" },
+
+  "loading": "Loading...",
+  "@loading": { "description": "Generic loading text" },
+
+  "error": "Error",
+  "@error": { "description": "Generic error label" },
+
+  "pipelineTitle": "Triage Pipeline",
+  "@pipelineTitle": { "description": "Pipeline status screen title" },
+
+  "analysisFailed": "Analysis Failed",
+  "@analysisFailed": { "description": "Pipeline error state title" },
+
+  "backToDashboard": "Back to Dashboard",
+  "@backToDashboard": { "description": "Button to navigate back to dashboard" }
+}

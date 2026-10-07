@@ -11,10 +11,10 @@ class ScansListScreen extends StatefulWidget {
   const ScansListScreen({super.key});
 
   @override
-  State<ScansListScreen> createState() => _ScansListScreenState();
+  State<ScansListScreen> createState() => ScansListScreenState();
 }
 
-class _ScansListScreenState extends State<ScansListScreen> {
+class ScansListScreenState extends State<ScansListScreen> {
   final ScanService _scanService = ScanService();
   List<Map<String, dynamic>> _scans = [];
   bool _loading = true;
@@ -24,10 +24,10 @@ class _ScansListScreenState extends State<ScansListScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    load();
   }
 
-  Future<void> _load() async {
+  Future<void> load() async {
     setState(() {
       _loading = true;
       _error = null;
@@ -104,7 +104,7 @@ class _ScansListScreenState extends State<ScansListScreen> {
           const Divider(height: 1),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _load,
+              onRefresh: load,
               color: LucidiaColors.teal,
               backgroundColor: LucidiaColors.surfaceElevated,
               child: _loading
@@ -121,7 +121,7 @@ class _ScansListScreenState extends State<ScansListScreen> {
                                     textAlign: TextAlign.center),
                                 const SizedBox(height: 12),
                                 OutlinedButton(
-                                  onPressed: _load,
+                                  onPressed: load,
                                   child: const Text('Retry'),
                                 ),
                               ],
@@ -164,7 +164,7 @@ class _ScansListScreenState extends State<ScansListScreen> {
                                         : ReportViewerScreen(scanId: scan['id']);
                                     Navigator.of(context, rootNavigator: true)
                                         .push(MaterialPageRoute(builder: (_) => target))
-                                        .then((_) => _load());
+                                        .then((_) => load());
                                   },
                                   child: Container(
                                     padding: const EdgeInsets.all(16),
