@@ -94,6 +94,27 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
       );
     } catch (e) {
       if (!mounted) return;
+      if (e is ValidationException) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: LucidiaColors.warning),
+                SizedBox(width: 8),
+                Text('Image Rejected'),
+              ],
+            ),
+            content: Text(e.message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
       final err = e.toString().replaceAll('Exception: ', '');
       setState(() => _error = err);
     } finally {

@@ -27,6 +27,7 @@ public class ScanService {
     private final ImageStorageService imageStorageService;
     private final QuotaService quotaService;
     private final ScanDeduplicationService deduplicationService;
+    private final com.lucidia.backend.responsibleai.ResponsibleAiGuardrailService responsibleAiService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ScanService(
@@ -35,13 +36,15 @@ public class ScanService {
             AuditLogService auditLogService,
             ImageStorageService imageStorageService,
             QuotaService quotaService,
-            ScanDeduplicationService deduplicationService) {
+            ScanDeduplicationService deduplicationService,
+            com.lucidia.backend.responsibleai.ResponsibleAiGuardrailService responsibleAiService) {
         this.scanRepository = scanRepository;
         this.asyncPipelineExecutor = asyncPipelineExecutor;
         this.auditLogService = auditLogService;
         this.imageStorageService = imageStorageService;
         this.quotaService = quotaService;
         this.deduplicationService = deduplicationService;
+        this.responsibleAiService = responsibleAiService;
     }
 
     /**
@@ -53,9 +56,18 @@ public class ScanService {
         }
 
         String effectiveModality = (modality != null && !modality.isBlank()) ? modality.toUpperCase() : "CT_SERIES";
+
+        // 1. Strict input validation & Gemini gate BEFORE quota consumption or saving scan
+        try {
+            responsibleAiService.validateUpload(slices, effectiveModality);
+        } catch (com.lucidia.backend.responsibleai.ResponsibleAiException ex) {
+            auditLogService.record(userId, "UPLOAD_REJECTED", UUID.randomUUID());
+            throw ex;
+        }
+
         boolean isByok = customApiKey != null && !customApiKey.isBlank();
 
-        // 1. Check & consume quota (bypassed if BYOK)
+        // 2. Check & consume quota (bypassed if BYOK)
         quotaService.checkAndConsume(userId, isByok);
 
         // 2. Hash-based Deduplication check

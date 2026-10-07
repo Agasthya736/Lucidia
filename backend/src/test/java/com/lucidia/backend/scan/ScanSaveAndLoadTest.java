@@ -46,6 +46,7 @@ class ScanSaveAndLoadTest {
     private PipelineOrchestrator pipelineOrchestrator;
     private ReportSynthesisService reportSynthesisService;
     private ReportPdfService reportPdfService;
+    private com.lucidia.backend.responsibleai.ResponsibleAiGuardrailService responsibleAiService;
 
     private AsyncPipelineExecutor asyncPipelineExecutor;
     private ScanService scanService;
@@ -142,6 +143,8 @@ class ScanSaveAndLoadTest {
         reportSynthesisService = mock(ReportSynthesisService.class);
         reportPdfService = mock(ReportPdfService.class);
 
+        responsibleAiService = mock(com.lucidia.backend.responsibleai.ResponsibleAiGuardrailService.class);
+
         asyncPipelineExecutor = new AsyncPipelineExecutor(scanRepository, pipelineOrchestrator);
         scanService = new ScanService(
                 scanRepository,
@@ -149,7 +152,8 @@ class ScanSaveAndLoadTest {
                 auditLogService,
                 imageStorageService,
                 quotaService,
-                deduplicationService
+                deduplicationService,
+                responsibleAiService
         );
 
         scanController = new ScanController(
@@ -237,7 +241,8 @@ class ScanSaveAndLoadTest {
                 auditLogService,
                 imageStorageService,
                 quotaService,
-                deduplicationService
+                deduplicationService,
+                responsibleAiService
         );
         ScanController newScanController = new ScanController(
                 newScanService,

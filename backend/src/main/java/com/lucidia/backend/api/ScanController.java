@@ -257,9 +257,9 @@ public class ScanController {
 
     @ExceptionHandler(com.lucidia.backend.responsibleai.ResponsibleAiException.class)
     public ResponseEntity<?> handleResponsibleAiViolation(com.lucidia.backend.responsibleai.ResponsibleAiException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
                 .body(Map.of(
-                        "code", "RESPONSIBLE_AI_POLICY_VIOLATION",
+                        "code", "IMAGE_VALIDATION_FAILED",
                         "message", ex.getMessage()
                 ));
     }

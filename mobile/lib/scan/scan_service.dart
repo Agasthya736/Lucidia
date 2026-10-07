@@ -5,6 +5,14 @@ import 'package:http_parser/http_parser.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:file_picker/file_picker.dart';
 
+class ValidationException implements Exception {
+  final String message;
+  ValidationException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 class ScanService {
   static const String baseUrl = "https://lucidia-backend-794373598684.asia-south1.run.app";
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -59,6 +67,16 @@ class ScanService {
       } catch (e) {
         if (e is Exception && e.toString().contains('not suitable')) rethrow;
         throw Exception('Submission rejected (400): $body');
+      }
+    }
+
+    if (streamed.statusCode == 422) {
+      try {
+        final json = jsonDecode(body);
+        throw ValidationException(json['message'] ?? 'Image does not meet clinical requirements.');
+      } catch (e) {
+        if (e is ValidationException) rethrow;
+        throw ValidationException('Validation rejected (422): $body');
       }
     }
 

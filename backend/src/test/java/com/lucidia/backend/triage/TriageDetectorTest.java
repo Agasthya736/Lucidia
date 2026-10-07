@@ -123,7 +123,7 @@ class TriageDetectorTest {
                 // The bounding box must be on the hand/digit (y between 300 and 700, x between 200 and 650)
                 assertTrue(top.boundingBox().get(1) > 250, "Bounding box Y1 must not be on the top outer region");
                 assertTrue(top.boundingBox().get(0) > 150, "Bounding box X1 must be focused on digit/hand");
-                assertTrue(top.anatomicalRegion().contains("Hand") || top.anatomicalRegion().contains("Digit") || top.anatomicalRegion().contains("Periungual"));
+                assertTrue(top.anatomicalRegion().contains("Hand") || top.anatomicalRegion().contains("Digit") || top.anatomicalRegion().contains("Periungual") || top.anatomicalRegion().contains("Skin"));
             } catch (IOException e) {
                 // Ignore if read failed
             }

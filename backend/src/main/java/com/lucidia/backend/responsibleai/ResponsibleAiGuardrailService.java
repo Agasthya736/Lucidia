@@ -3,10 +3,12 @@ package com.lucidia.backend.responsibleai;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.util.List;
+import java.util.Set;
 import javax.imageio.ImageIO;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.lucidia.backend.triage.SliceInput;
@@ -19,29 +21,63 @@ public class ResponsibleAiGuardrailService {
     private static final long MAX_IMAGE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
     private static final int MIN_DIMENSION = 64;
 
+    private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
+            "image/jpeg", "image/jpg", "image/png", "image/webp", "application/dicom", "image/dicom", "application/octet-stream"
+    );
+
+    private final GeminiImageVerifier geminiImageVerifier;
+
+    public ResponsibleAiGuardrailService(@Autowired(required = false) GeminiImageVerifier geminiImageVerifier) {
+        this.geminiImageVerifier = geminiImageVerifier;
+    }
+
     /**
-     * Enforce strict Responsible AI screening on incoming image series.
-     * Prevents system abuse (memes, blank files, synthetic non-medical graphics, random screenshots).
+     * Enforce strict input validation and server-side Gemini modality gate screening.
+     * Order of execution:
+     * 1. File checks: allowed types only, max size, minimum dimensions, reject corrupt files. Return HTTP 422.
+     * 2. Gemini gate (server-side), one question per modality:
+     *    - CT_SERIES: "Is this a CT scan slice of the body? Respond ONLY with JSON {\"valid\": true|false, \"reason\": \"...\"}"
+     *    - EXTERNAL_PHOTO: "Does this image clearly show human skin as the main subject? Respond ONLY with JSON {\"valid\": true|false, \"reason\": \"...\"}"
+     * 3. If Gemini call fails or times out, reject with "Could not verify the image, please try again". Never let an unchecked image through.
      */
     public void validateUpload(List<SliceInput> slices, String modality) {
         if (slices == null || slices.isEmpty()) {
-            throw new ResponsibleAiException("Responsible AI Guardrail: No images submitted for clinical analysis.");
+            throw new ResponsibleAiException("No images submitted for clinical analysis.");
         }
 
         if (slices.size() > 50) {
-            throw new ResponsibleAiException("Responsible AI Guardrail: Series exceeds maximum limit of 50 images per submission.");
+            throw new ResponsibleAiException("Series exceeds maximum limit of 50 images per submission.");
         }
+
+        String effectiveModality = (modality != null && !modality.isBlank()) ? modality.toUpperCase() : "CT_SERIES";
 
         for (int i = 0; i < slices.size(); i++) {
             SliceInput slice = slices.get(i);
             byte[] bytes = slice.bytes();
 
             if (bytes == null || bytes.length == 0) {
-                throw new ResponsibleAiException("Responsible AI Guardrail: Image slice " + (i + 1) + " is empty.");
+                throw new ResponsibleAiException("Image slice " + (i + 1) + " is empty.");
             }
 
             if (bytes.length > MAX_IMAGE_SIZE_BYTES) {
-                throw new ResponsibleAiException("Responsible AI Guardrail: Image slice " + (i + 1) + " exceeds maximum allowed file size of 25MB.");
+                throw new ResponsibleAiException("Image slice " + (i + 1) + " exceeds maximum allowed file size of 25MB.");
+            }
+
+            // Allowed MIME type check
+            String mime = slice.mimeType();
+            if (mime != null && !mime.isBlank() && !ALLOWED_MIME_TYPES.contains(mime.toLowerCase())) {
+                throw new ResponsibleAiException("Unsupported file type. Please upload a JPEG, PNG, or WebP image.");
+            }
+
+            // Filename extension check
+            String filename = slice.filename();
+            if (filename != null && !filename.isBlank()) {
+                String lower = filename.toLowerCase();
+                boolean validExt = lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")
+                        || lower.endsWith(".webp") || lower.endsWith(".dcm") || lower.endsWith(".bin");
+                if (!validExt) {
+                    throw new ResponsibleAiException("Unsupported file format in " + filename + ". Allowed formats: JPEG, PNG, WebP.");
+                }
             }
 
             BufferedImage img;
@@ -49,26 +85,39 @@ public class ResponsibleAiGuardrailService {
                 img = ImageIO.read(new ByteArrayInputStream(bytes));
             } catch (Exception e) {
                 log.warn("Failed to parse image bytes for slice {}: {}", i, e.getMessage());
-                throw new ResponsibleAiException("Responsible AI Guardrail: Image slice " + (i + 1) + " contains corrupt or invalid image data.");
+                throw new ResponsibleAiException("Image slice " + (i + 1) + " contains corrupt or invalid image data.");
             }
 
             if (img == null) {
-                throw new ResponsibleAiException("Responsible AI Guardrail: Unsupported image format in slice " + (i + 1) + ". Please upload JPEG, PNG, or DICOM.");
+                throw new ResponsibleAiException("File is corrupt or not a recognized image format. Please upload JPEG, PNG, or WebP.");
             }
 
             int width = img.getWidth();
             int height = img.getHeight();
 
             if (width < MIN_DIMENSION || height < MIN_DIMENSION) {
-                throw new ResponsibleAiException("Responsible AI Guardrail: Image resolution " + width + "x" + height +
+                throw new ResponsibleAiException("Image resolution " + width + "x" + height +
                         " is below minimum diagnostic threshold of " + MIN_DIMENSION + "x" + MIN_DIMENSION + ".");
             }
 
-            // Screen content based on modality
-            if ("EXTERNAL_PHOTO".equalsIgnoreCase(modality)) {
+            // Screen content heuristic checks
+            if ("EXTERNAL_PHOTO".equalsIgnoreCase(effectiveModality)) {
                 screenExternalClinicalPhoto(img, i);
             } else {
                 screenRadiologyScan(img, i);
+            }
+
+            // 2 & 3: Gemini gate verification
+            if (geminiImageVerifier == null) {
+                throw new ResponsibleAiException("Could not verify the image, please try again");
+            }
+
+            GeminiImageVerifier.ValidationResult gateResult = geminiImageVerifier.verify(bytes, mime, effectiveModality);
+            if (gateResult == null || !gateResult.isValid()) {
+                String reason = (gateResult != null && gateResult.reason() != null && !gateResult.reason().isBlank())
+                        ? gateResult.reason()
+                        : "Could not verify the image, please try again";
+                throw new ResponsibleAiException(reason);
             }
         }
     }
@@ -92,23 +141,22 @@ public class ResponsibleAiGuardrailService {
 
                 totalSampled++;
 
-                // Check for pure monochrome / artificial flat blocks (e.g. solid test cards / memes)
+                // Check for pure monochrome / artificial flat blocks
                 if ((r == 0 && g == 0 && b == 0) || (r >= 250 && g >= 250 && b >= 250)) {
                     pureMonochromePixels++;
                 }
 
-                // Check for typical foliage, plant, leaf, tree tones (strong green predominance)
+                // Check for typical foliage, plant, leaf, tree tones
                 if (g > 60 && g > (r * 1.15) && g > (b * 1.15)) {
                     plantOrNaturePixels++;
                 }
 
-                // Typical cutaneous tone in RGB: R > G > B with moderate contrast, or erythema (R >> G, B)
+                // Typical cutaneous tone in RGB
                 boolean isSkinTone = (r > 60 && g > 40 && b > 20) &&
                         (r > g) &&
                         ((r - g) >= 10 || (r - b) >= 12) &&
                         (Math.abs(r - g) > 8);
 
-                // Or inflammatory erythema / mucosal / tissue reflectance:
                 boolean isErythematousTissue = (r > 100 && r > (g * 1.15) && r > (b * 1.15));
 
                 if (isSkinTone || isErythematousTissue) {
@@ -137,7 +185,6 @@ public class ResponsibleAiGuardrailService {
                 Math.round(biologicalRatio * 1000.0) / 1000.0,
                 Math.round(plantRatio * 1000.0) / 1000.0);
 
-        // If biological tissue ratio is virtually zero (< 1.5%), reject non-clinical / random image
         if (biologicalRatio < 0.015) {
             throw new ResponsibleAiException(
                     "Non-medical image detected. Lucidia cannot process random objects, landscapes, or general photos. Please upload a clear medical scan (CT / X-ray) or clinical photograph of the affected skin/body area."

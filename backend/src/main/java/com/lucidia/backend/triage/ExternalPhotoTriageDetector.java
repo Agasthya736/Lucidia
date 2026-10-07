@@ -249,15 +249,15 @@ public class ExternalPhotoTriageDetector {
 
                 if ("VERRUCOUS".equals(detectedCategory)) {
                     lesionType = "Elevated skin lesion / wart (suspected verruca or keratosis)";
-                    region = "Hand / Skin Surface";
-                    desc = "Elevated skin surface lesion with irregular texture noted on the hand or skin surface. No acute spreading redness observed.";
+                    region = "Skin Surface";
+                    desc = "Elevated skin surface lesion with irregular texture noted on the skin surface. No acute spreading redness observed.";
                 } else if ("ERYTHEMATOUS".equals(detectedCategory)) {
                     lesionType = "Redness / localized skin inflammation";
-                    region = "Hand / Skin Surface";
+                    region = "Skin Surface";
                     desc = "Area of localized skin redness or mild inflammation noted on the skin surface.";
                 } else {
                     lesionType = "Pigmented spot / cutaneous mark";
-                    region = "Hand / Skin Surface";
+                    region = "Skin Surface";
                     desc = "Localized pigmented area or spot noted on the skin surface with distinct borders.";
                 }
 
