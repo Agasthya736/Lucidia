@@ -47,7 +47,7 @@ public class WritingAgent {
     described above, list 2-4 possible general categories of explanation a
     clinician might consider, from most to least likely given the visual
     description. Use general categories, not definitive disease names (e.g.
-    "a malignant neoplasm" rather than a specific cancer subtype, "an
+    "a focal tissue variation" rather than a specific condition, "an
     infectious or inflammatory process" rather than naming a specific
     pathogen). Do not include specific disease names anywhere in the
     differential entry, including as parenthetical examples (e.g., do not

@@ -60,7 +60,7 @@ class ScansListScreenState extends State<ScansListScreen> {
   }
 
   Color _statusColor(String status, bool flagged) {
-    if (status == 'FINALIZED') return LucidiaColors.success;
+    if (status == 'FINALIZED' || status == 'COMPLETED') return LucidiaColors.teal;
     if (status == 'FAILED') return LucidiaColors.error;
     if (status == 'PROCESSING' || status == 'RECEIVED') return LucidiaColors.warning;
     if (flagged) return LucidiaColors.warning;
@@ -155,6 +155,7 @@ class ScansListScreenState extends State<ScansListScreen> {
                                 final flagged = scan['flaggedForReview'] as bool? ?? false;
                                 final createdAt = DateTime.tryParse(scan['createdAt'] ?? '');
                                 final severity = scan['report'] is Map ? scan['report']['severity'] as String? : null;
+                                final resultBandStr = scan['resultBand'] as String?;
 
                                 return InkWell(
                                   borderRadius: BorderRadius.circular(14),
@@ -187,7 +188,13 @@ class ScansListScreenState extends State<ScansListScreen> {
                                                       overflow: TextOverflow.ellipsis,
                                                     ),
                                                   ),
-                                                  if (severity != null) ...[
+                                                  if (resultBandStr != null) ...[
+                                                    const SizedBox(width: 8),
+                                                    ResultBandBadge(
+                                                      band: ResultBand.fromString(resultBandStr),
+                                                      compact: true,
+                                                    ),
+                                                  ] else if (severity != null) ...[
                                                     const SizedBox(width: 8),
                                                     UrgencyBadge(
                                                       level: UrgencyLevel.fromString(severity),

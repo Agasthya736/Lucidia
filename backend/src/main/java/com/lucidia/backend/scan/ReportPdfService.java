@@ -252,7 +252,7 @@ public class ReportPdfService {
         int totalSlices = triage.path("totalSlices").asInt(scan.getSliceCount());
 
         Paragraph p = new Paragraph();
-        p.add(new Chunk(String.format("Detector Confidence: %.1f%%  |  Total Slices: %d  |  Abnormal Slices: %d",
+        p.add(new Chunk(String.format("Detector Confidence: %.1f%%  |  Total Slices: %d  |  Slices with Findings: %d",
                 confidence * 100.0, totalSlices, abnormalCount), META_VALUE_FONT));
         p.setSpacingAfter(6);
         document.add(p);
@@ -328,9 +328,7 @@ public class ReportPdfService {
         }
 
         Paragraph disclaimer = new Paragraph(
-                "IMPORTANT SAFETY NOTICE: This report is AI-generated for educational and informational guidance only. "
-                        + "It is NOT an official medical diagnosis. Please consult a qualified doctor or healthcare specialist "
-                        + "for clinical evaluation, prescription, or medical decision-making.",
+                "Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional.",
                 FOOTER_FONT);
         disclaimer.setAlignment(Element.ALIGN_JUSTIFIED);
         document.add(disclaimer);

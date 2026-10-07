@@ -31,28 +31,28 @@ public class GeminiReportSynthesisProvider implements ReportSynthesisProvider {
 
     CRITICAL RULES:
     1. Do NOT use dense technical radiology jargon or raw mechanical measurements (e.g. AVOID phrases like "45 mm thick", HU density numbers, or complex slice indices).
-    2. Suggest clearly what condition or disease the scan indicates in plain words (e.g., "Possible early pulmonary nodule / mild localized inflammation", "Suspicious skin mole / benign verruca"). If clean, say "No signs of disease detected".
-    3. IMPRESSION: A friendly, easy-to-understand 1-2 sentence summary of what might be the problem.
+    2. Describe findings as plain observations (e.g. "a raised skin area", "a reddened area", "a darker patch", "a focal opacity"). NEVER use words like "normal", "healthy", "benign", or "malignant". NEVER state "you have X" or give a definitive medical diagnosis.
+    3. IMPRESSION: A friendly, easy-to-understand 1-2 sentence summary of what was observed.
     4. SEVERITY must be exactly one of: "ROUTINE", "FOLLOW_UP_RECOMMENDED", "URGENT".
-    5. PATIENT_FRIENDLY_SUMMARY: Explain clearly in simple everyday terms: What might be the issue, where it is located, and why it matters.
-    6. RECOMMENDATIONS: Straightforward next steps (e.g. "Schedule a routine visit with your general doctor or pulmonologist for a physical checkup").
-    7. Always include a brief reminder that this is an AI estimate and to consult a licensed physician.
+    5. PATIENT_FRIENDLY_SUMMARY: Explain clearly in simple everyday terms what was observed, where it is located, and why it is important to consult a doctor.
+    6. RECOMMENDATIONS: Straightforward next steps (e.g. "Schedule a visit with a doctor or specialist for a clinical evaluation").
+    7. Always include a reminder that the tool is not a medical device and to consult a licensed healthcare professional.
 
     Respond with ONLY a valid JSON object matching this exact schema:
     {
-      "suspectedCondition": "Name of suspected condition or disease",
+      "suspectedCondition": "General description of observation",
       "clinicalFindings": [
         {
           "region": "Anatomical region (e.g. Right Lung, Left Cheek, Skin)",
-          "status": "NORMAL" | "ABNORMAL" | "EQUIVOCAL",
-          "description": "Simple, everyday explanation of what was noticed here without raw numerical thickness jargon",
+          "status": "FINDINGS_DETECTED" | "NO_FINDINGS_DETECTED" | "INCONCLUSIVE",
+          "description": "Simple, everyday observation of what was noticed here without raw numerical thickness jargon",
           "sliceIndices": [1, 2]
         }
       ],
-      "impression": "Clear, concise conclusion of what might be the problem",
+      "impression": "The tool detected features that may need attention. See a doctor.",
       "severity": "ROUTINE" | "FOLLOW_UP_RECOMMENDED" | "URGENT",
-      "patientFriendlySummary": "Warm, non-alarmist, plain-language explanation for everyday users",
-      "recommendations": "Simple, actionable advice on which doctor to consult or what steps to take next"
+      "patientFriendlySummary": "Warm, non-alarmist, plain-language explanation of observations for everyday users",
+      "recommendations": "Simple, actionable advice on consulting a doctor or what steps to take next"
     }
     """;
 
@@ -145,18 +145,19 @@ public class GeminiReportSynthesisProvider implements ReportSynthesisProvider {
 
     public String answerQuestion(String reportJson, String question, String customApiKey) {
         String system = """
-        You are an empathetic, highly informative healthcare explainer AI for patients.
+        You are an empathetic, informative informational health explainer AI.
         A user is asking a question about their scan report.
         
         CRITICAL RULES:
-        1. DIRECTLY ANSWER THEIR QUESTION: If they ask "What kind of disease is this?" or "What might I have?", explicitly mention what disease or condition the findings point to (e.g. "Based on the findings, this could suggest pneumonia, a bronchial infection, or in some cases a mild inflammation or nodule").
-        2. EXPLAIN SIMPLY: Explain the symptoms and meaning in plain everyday language so a non-medical person can easily understand.
-        3. BE SPECIFIC: Mention the specific body area and findings from the report in your answer.
-        4. Keep your answer warm, reassuring, clear, and around 2-3 short paragraphs.
-        5. At the very end, include a gentle 1-sentence note: "Remember, this is an AI estimate to help you understand your scan, not an official diagnosis—always verify with your doctor."
+        1. NEVER STATE A DIAGNOSIS: Never say "you have X" or confirm a specific medical condition.
+        2. NEVER USE BANNED WORDS: Never use words like "normal", "healthy", "benign", or "malignant".
+        3. EXPLAIN OBSERVATIONS: Explain what was observed in plain, everyday language at a grade 6 reading level.
+        4. ALWAYS RECOMMEND A DOCTOR: Encourage the user to discuss the observations with a qualified physician for clinical evaluation.
+        5. Keep your answer warm, clear, and around 2 short paragraphs.
+        6. At the very end, include: "Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional."
         """;
 
-        String userPrompt = "PATIENT'S SCAN REPORT:\n" + reportJson + "\n\nUSER'S QUESTION: " + question;
+        String userPrompt = "USER'S SCAN REPORT:\n" + reportJson + "\n\nUSER'S QUESTION: " + question;
 
         try {
             if (customApiKey != null && !customApiKey.isBlank()) {
@@ -183,43 +184,42 @@ public class GeminiReportSynthesisProvider implements ReportSynthesisProvider {
             JsonNode report = objectMapper.readTree(reportJson);
             String condition = report.path("suspectedCondition").asText(report.path("impression").asText("a focal tissue variation"));
             String patientFriendly = report.path("patientFriendlySummary").asText("");
-            String recommendations = report.path("recommendations").asText("Routine checkup with a doctor");
+            String recommendations = report.path("recommendations").asText("Consult a healthcare professional for an evaluation");
             String severity = report.path("severity").asText("ROUTINE");
 
             String qLower = question.toLowerCase();
 
             if (qLower.contains("disease") || qLower.contains("what") || qLower.contains("problem") || qLower.contains("have") || qLower.contains("condition")) {
                 return String.format(
-                        "Based on your scan, the AI identified signs consistent with %s.\n\n" +
+                        "Based on your scan, the tool observed: %s.\n\n" +
                         "%s\n\n" +
-                        "This could range from a localized infection or inflammation (like bronchitis or mild pneumonia) to a benign spot or nodule. " +
-                        "Please share this report with your physician so they can correlate it with any symptoms (like cough or fever) and evaluate you in person.",
-                        condition, patientFriendly.isEmpty() ? "The scan highlights an area that differs slightly from normal surrounding tissue." : patientFriendly);
+                        "This is an automated observation, not a medical diagnosis. " +
+                        "Please share this report with your physician so they can examine this in person.",
+                        condition, patientFriendly.isEmpty() ? "The scan highlights a localized area of variation." : patientFriendly);
             } else if (qLower.contains("urgent") || qLower.contains("serious") || qLower.contains("danger") || qLower.contains("scared")) {
                 if ("URGENT".equalsIgnoreCase(severity)) {
-                    return "The AI noted a significant finding that warrants prompt attention. You should schedule an appointment with your doctor or specialist as soon as possible for a thorough clinical review.";
+                    return "The tool noted a significant feature that may need prompt attention. You should schedule an appointment with a doctor as soon as possible for an in-person evaluation.";
                 } else if ("FOLLOW_UP_RECOMMENDED".equalsIgnoreCase(severity)) {
-                    return "The scan shows an area that should be reviewed or monitored, but it does not appear immediately life-threatening. A standard follow-up with your primary physician in the coming days or weeks is advised.";
+                    return "The tool noted a feature that should be reviewed or monitored by a physician. A follow-up with your primary doctor in the coming weeks is advised.";
                 } else {
-                    return "The scan appears generally reassuring with no urgent high-risk flags detected. Routine health checks remain recommended.";
+                    return "The tool did not identify urgent flags, but this is not a medical clearance. If you have symptoms, please consult a healthcare professional.";
                 }
             } else if (qLower.contains("ask") || qLower.contains("doctor") || qLower.contains("next")) {
                 return "When you see your doctor, consider asking:\n" +
-                       "• Does this finding explain any symptoms I am currently having?\n" +
-                       "• Do I need any follow-up imaging (like another scan in a few months) to see if it changes?\n" +
-                       "• Are there any specific treatments or medications recommended?\n\n" +
+                       "• Does this observation explain any symptoms I am currently having?\n" +
+                       "• Do I need any follow-up imaging to monitor this area?\n" +
+                       "• What next steps do you recommend?\n\n" +
                        "Recommendations noted on your report: " + recommendations;
             } else {
                 return String.format(
-                        "Regarding your question: The scan primarily suggests %s.\n\n" +
+                        "Regarding your question: The scan observation indicates %s.\n\n" +
                         "%s\n\n" +
-                        "Because every patient's situation is unique, discussing this directly with your doctor is the best way to get personalized advice.",
+                        "Because every individual's situation is unique, discussing this directly with your doctor is the best way to get personalized guidance.",
                         condition, patientFriendly);
             }
         } catch (Exception ex) {
-            return "Based on your scan report, the findings suggest a possible focal condition or inflammation. " +
-                   "Depending on your symptoms, this could be related to an infection (such as pneumonia or a chest cold) or a localized nodule. " +
-                   "We recommend discussing these results with your healthcare provider for an accurate personal diagnosis.";
+            return "Based on your scan report, the tool observed a localized area of interest. " +
+                   "The tool detected features that may need attention. Please discuss these observations with your healthcare professional for an in-person evaluation.";
         }
     }
 
@@ -274,7 +274,7 @@ public class GeminiReportSynthesisProvider implements ReportSynthesisProvider {
                     }
                     regions.add(new RegionalFinding(
                             f.path("region").asText("Thorax"),
-                            f.path("status").asText("NORMAL").toUpperCase(),
+                            AggregatedFindings.mapToResultBand(f.path("status").asText("NO_FINDINGS_DETECTED")),
                             f.path("description").asText(""),
                             slices
                     ));
@@ -282,14 +282,14 @@ public class GeminiReportSynthesisProvider implements ReportSynthesisProvider {
             }
 
             String impression = root.path("impression").asText(
-                    findings.abnormalSlicesCount() > 0 ? "Suspected focal abnormality detected on CT series." : "No significant abnormality detected."
+                    findings.bandMessage()
             );
 
             String severity = root.path("severity").asText(
                     findings.abnormalSlicesCount() > 0 ? "FOLLOW_UP_RECOMMENDED" : "ROUTINE"
             ).toUpperCase();
 
-            String recommendations = root.path("recommendations").asText("Clinical correlation recommended.");
+            String recommendations = root.path("recommendations").asText("Consult a healthcare professional for clinical evaluation.");
 
             String suspectedCondition = root.path("suspectedCondition").asText(impression);
             String patientFriendly = root.path("patientFriendlySummary").asText(impression);
@@ -307,7 +307,7 @@ public class GeminiReportSynthesisProvider implements ReportSynthesisProvider {
                     false,
                     suspectedCondition,
                     patientFriendly,
-                    "AI SAFETY DISCLAIMER: This analysis is AI-generated for informational guidance only and is NOT a medical diagnosis. Please consult a qualified doctor or healthcare professional for clinical evaluation."
+                    "Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional."
             );
 
         } catch (Exception e) {

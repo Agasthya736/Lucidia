@@ -7,7 +7,7 @@ public record SliceFindings(
         int sliceIndex,
         String sliceFilename,
         boolean hasAbnormality,
-        String classification, // NORMAL, ABNORMAL, EQUIVOCAL
+        String classification, // NO_FINDINGS_DETECTED, FINDINGS_DETECTED, INCONCLUSIVE
         double confidence,
         List<DetectedLesion> lesions,
         Map<String, Object> metrics
@@ -17,7 +17,7 @@ public record SliceFindings(
                 sliceIndex,
                 filename,
                 false,
-                "NORMAL",
+                "NO_FINDINGS_DETECTED",
                 confidence,
                 List.of(),
                 Map.of("lesionCount", 0)

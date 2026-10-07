@@ -37,21 +37,24 @@ public class PretrainedCtTriageDetector implements TriageDetector {
     private static final Logger log = LoggerFactory.getLogger(PretrainedCtTriageDetector.class);
 
     private final double confidenceThreshold;
+    private final double inconclusiveThreshold;
     private final double minLesionAreaFraction;
     private final GeminiVisionAgent geminiVisionAgent;
 
     @Autowired
     public PretrainedCtTriageDetector(
             @Value("${lucidia.triage.confidence-threshold:0.85}") double confidenceThreshold,
+            @Value("${lucidia.triage.inconclusive-threshold:0.70}") double inconclusiveThreshold,
             @Value("${lucidia.triage.min-lesion-area-fraction:0.0005}") double minLesionAreaFraction,
             @Autowired(required = false) GeminiVisionAgent geminiVisionAgent) {
         this.confidenceThreshold = confidenceThreshold;
+        this.inconclusiveThreshold = inconclusiveThreshold;
         this.minLesionAreaFraction = minLesionAreaFraction;
         this.geminiVisionAgent = geminiVisionAgent;
     }
 
     public PretrainedCtTriageDetector(double confidenceThreshold, double minLesionAreaFraction) {
-        this(confidenceThreshold, minLesionAreaFraction, null);
+        this(confidenceThreshold, 0.70, minLesionAreaFraction, null);
     }
 
     @Override
@@ -62,7 +65,7 @@ public class PretrainedCtTriageDetector implements TriageDetector {
     @Override
     public AggregatedFindings analyzeSeries(List<SliceInput> slices) {
         if (slices == null || slices.isEmpty()) {
-            return AggregatedFindings.fromSliceFindings(List.of(), confidenceThreshold);
+            return AggregatedFindings.fromSliceFindings(List.of(), inconclusiveThreshold);
         }
 
         List<SliceFindings> sliceFindings = new ArrayList<>();
@@ -70,7 +73,7 @@ public class PretrainedCtTriageDetector implements TriageDetector {
             sliceFindings.add(analyzeSlice(slice));
         }
 
-        return AggregatedFindings.fromSliceFindings(sliceFindings, confidenceThreshold);
+        return AggregatedFindings.fromSliceFindings(sliceFindings, inconclusiveThreshold);
     }
 
     @Override
@@ -211,7 +214,7 @@ public class PretrainedCtTriageDetector implements TriageDetector {
             }
 
             boolean hasAbnormality = !lesions.isEmpty();
-            String classification = hasAbnormality ? "ABNORMAL" : "NORMAL";
+            String classification = hasAbnormality ? "FINDINGS_DETECTED" : "NO_FINDINGS_DETECTED";
 
             double confidence;
             if (hasAbnormality) {

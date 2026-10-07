@@ -39,46 +39,46 @@ public record GroundedReport(
 
     public static GroundedReport createCleanAutoSummary(AggregatedFindings findings) {
         List<RegionalFinding> regions = List.of(
-                new RegionalFinding("Right Lung", "NORMAL", "Clear parenchyma without focal nodule, consolidation, or suspicious opacity.", List.of()),
-                new RegionalFinding("Left Lung", "NORMAL", "Clear parenchyma without infiltrates, masses, or volume loss.", List.of()),
-                new RegionalFinding("Mediastinum & Hila", "NORMAL", "Unremarkable mediastinal contour and hilar vascular structures.", List.of()),
-                new RegionalFinding("Pleura & Chest Wall", "NORMAL", "No pleural effusion, thickening, or pneumothorax identified.", List.of())
+                new RegionalFinding("Right Lung", "NO_FINDINGS_DETECTED", "No focal pulmonary features or discrete opacities detected.", List.of()),
+                new RegionalFinding("Left Lung", "NO_FINDINGS_DETECTED", "No focal pulmonary features or discrete opacities detected.", List.of()),
+                new RegionalFinding("Mediastinum & Hila", "NO_FINDINGS_DETECTED", "Unremarkable mediastinal contour and hilar structures.", List.of()),
+                new RegionalFinding("Pleura & Chest Wall", "NO_FINDINGS_DETECTED", "No pleural fluid collection or thickening detected.", List.of())
         );
 
-        String impression = "No acute cardiopulmonary abnormality detected. Visualized thoracic structures are unremarkable.";
+        String impression = "The tool did not detect the features it looks for. This is NOT a clearance. If you have symptoms, see a doctor.";
 
         return new GroundedReport(
                 regions,
                 impression,
                 "ROUTINE",
                 findings.overallConfidence(),
-                "Routine follow-up as appropriate. No urgent findings noted.",
-                "Triage Auto-Summary (High-Confidence Clean Scan)",
+                "Routine follow-up as appropriate. If you experience symptoms, consult a doctor.",
+                "Triage Auto-Summary",
                 true,
-                "Normal Study: Visualized lungs, pleura, and mediastinum are clear without focal abnormality.",
-                "Your chest imaging appears clear and healthy, with no signs of pneumonia, fluid, or suspicious nodules detected.",
-                "EDUCATIONAL USE NOTICE: Lucidia provides AI-assisted image analysis for informational purposes only. Results do not constitute a medical diagnosis. Consult a qualified healthcare professional for any health concerns."
+                "No focal features detected across visualized chest areas.",
+                "The tool did not detect the features it looks for. This is NOT a clearance. If you have symptoms, see a doctor.",
+                "Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional."
         );
     }
 
     public static GroundedReport createCleanExternalPhotoSummary(AggregatedFindings findings) {
         List<RegionalFinding> regions = List.of(
-                new RegionalFinding("External Skin & Soft Tissue", "NORMAL", "Visualized skin surface appears intact and uniform without discrete focal ulceration, suspicious pigment irregularity, or marked erythema.", List.of())
+                new RegionalFinding("External Skin & Soft Tissue", "NO_FINDINGS_DETECTED", "Visualized skin surface appears intact without discrete focal surface changes or marked color variation.", List.of())
         );
 
-        String impression = "No discrete focal external pathology or suspicious skin lesion identified on photograph.";
+        String impression = "The tool did not detect the features it looks for. This is NOT a clearance. If you have symptoms, see a doctor.";
 
         return new GroundedReport(
                 regions,
                 impression,
                 "ROUTINE",
                 findings.overallConfidence(),
-                "Routine clinical skin self-examination. In-person clinical review advised if new symptoms, changes, or pain develop.",
-                "Triage Auto-Summary (External Clinical Photo)",
+                "Routine skin observation. Please see a doctor if you notice changing spots, pain, or irritation.",
+                "Triage Auto-Summary",
                 true,
-                "Unremarkable External Photo: Surface appears clear without focal cutaneous lesion.",
-                "The photographed skin surface looks clear with no obvious concerning spots or sores. Always consult a healthcare provider for any changing or bothersome skin areas.",
-                "RESPONSIBLE AI NOTICE: External photograph analysis is an educational and observational aid. It cannot replace in-person physical clinical examination, dermoscopy, or biopsy."
+                "No focal skin features detected on the photograph.",
+                "The tool did not detect the features it looks for. This is NOT a clearance. If you have symptoms, see a doctor.",
+                "Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional."
         );
     }
 }

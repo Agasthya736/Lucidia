@@ -34,7 +34,7 @@ class ReportPdfServiceTest {
         {
             "totalSlices": 5,
             "abnormalSlicesCount": 0,
-            "overallStatus": "NORMAL",
+            "overallStatus": "NO_FINDINGS_DETECTED",
             "overallConfidence": 0.94,
             "summaryEvidence": "All 5 slices demonstrate homogeneous thoracic parenchyma without focal hyperdense contours.",
             "topLesions": []
@@ -45,8 +45,8 @@ class ReportPdfServiceTest {
         String reportJson = """
         {
             "clinicalFindings": [
-                {"region": "Lungs / Parenchyma", "status": "NORMAL", "description": "Lungs are clear bilaterally. No focal consolidations or nodules.", "sliceIndices": [0, 1, 2, 3, 4]},
-                {"region": "Mediastinum & Heart", "status": "NORMAL", "description": "Mediastinal contours unremarkable.", "sliceIndices": [2, 3]}
+                {"region": "Lungs / Parenchyma", "status": "NO_FINDINGS_DETECTED", "description": "Lungs are clear bilaterally. No focal consolidations or nodules.", "sliceIndices": [0, 1, 2, 3, 4]},
+                {"region": "Mediastinum & Heart", "status": "NO_FINDINGS_DETECTED", "description": "Mediastinal contours unremarkable.", "sliceIndices": [2, 3]}
             ],
             "impression": "No significant abnormality detected.",
             "severity": "ROUTINE",
@@ -86,7 +86,7 @@ class ReportPdfServiceTest {
         {
             "totalSlices": 8,
             "abnormalSlicesCount": 2,
-            "overallStatus": "ABNORMAL",
+            "overallStatus": "FINDINGS_DETECTED",
             "overallConfidence": 0.89,
             "summaryEvidence": "Identified focal hyperdense nodular mass in Right Upper Lobe on slices 2 and 3.",
             "topLesions": [
@@ -108,9 +108,9 @@ class ReportPdfServiceTest {
         String reportJson = """
         {
             "clinicalFindings": [
-                {"region": "Right Upper Lobe", "status": "ABNORMAL", "description": "7.8mm circumscribed hyperdense nodule visualized in the posterior segment.", "sliceIndices": [2, 3]},
-                {"region": "Left Lung", "status": "NORMAL", "description": "Unremarkable aeration.", "sliceIndices": [0, 1, 2, 3, 4, 5, 6, 7]},
-                {"region": "Mediastinum & Pleura", "status": "NORMAL", "description": "No lymphadenopathy or effusion.", "sliceIndices": [3, 4]}
+                {"region": "Right Upper Lobe", "status": "FINDINGS_DETECTED", "description": "7.8mm circumscribed hyperdense nodule visualized in the posterior segment.", "sliceIndices": [2, 3]},
+                {"region": "Left Lung", "status": "NO_FINDINGS_DETECTED", "description": "Unremarkable aeration.", "sliceIndices": [0, 1, 2, 3, 4, 5, 6, 7]},
+                {"region": "Mediastinum & Pleura", "status": "NO_FINDINGS_DETECTED", "description": "No lymphadenopathy or effusion.", "sliceIndices": [3, 4]}
             ],
             "impression": "Suspected 7.8mm solitary pulmonary nodule, right upper lobe.",
             "severity": "FOLLOW_UP_RECOMMENDED",

@@ -18,13 +18,24 @@ public class ExternalPhotoTriageDetector {
 
     private static final Logger log = LoggerFactory.getLogger(ExternalPhotoTriageDetector.class);
 
+    @org.springframework.beans.factory.annotation.Value("${lucidia.triage.inconclusive-threshold:0.70}")
+    private double inconclusiveThreshold = 0.70;
+
+    public ExternalPhotoTriageDetector() {
+        this(0.70);
+    }
+
+    public ExternalPhotoTriageDetector(double inconclusiveThreshold) {
+        this.inconclusiveThreshold = inconclusiveThreshold;
+    }
+
     public String getDetectorName() {
         return "Lucidia-External-Surface-v1.0 (Dermatological & Exterior Morphological Analyzer)";
     }
 
     public AggregatedFindings analyzePhotos(List<SliceInput> photos) {
         if (photos == null || photos.isEmpty()) {
-            return AggregatedFindings.fromSliceFindings(List.of(), 0.85);
+            return AggregatedFindings.fromSliceFindings(List.of(), inconclusiveThreshold);
         }
 
         List<SliceFindings> findings = new ArrayList<>();
@@ -32,7 +43,7 @@ public class ExternalPhotoTriageDetector {
             findings.add(analyzeSinglePhoto(photo));
         }
 
-        return AggregatedFindings.fromSliceFindings(findings, 0.85);
+        return AggregatedFindings.fromSliceFindings(findings, inconclusiveThreshold);
     }
 
     private SliceFindings analyzeSinglePhoto(SliceInput photo) {
@@ -40,7 +51,7 @@ public class ExternalPhotoTriageDetector {
             BufferedImage img = ImageIO.read(new ByteArrayInputStream(photo.bytes()));
             if (img == null) {
                 return new SliceFindings(
-                        photo.sliceIndex(), photo.filename(), false, "EQUIVOCAL", 0.50, List.of(), Map.of("error", "Unreadable photo")
+                        photo.sliceIndex(), photo.filename(), false, "INCONCLUSIVE", 0.50, List.of(), Map.of("error", "Unreadable photo")
                 );
             }
 
@@ -49,7 +60,7 @@ public class ExternalPhotoTriageDetector {
 
             List<DetectedLesion> lesions = detectExteriorAnomalies(img, photo.sliceIndex());
             boolean hasAbnormality = !lesions.isEmpty();
-            String classification = hasAbnormality ? "ABNORMAL" : "NORMAL";
+            String classification = hasAbnormality ? "FINDINGS_DETECTED" : "NO_FINDINGS_DETECTED";
 
             double confidence = hasAbnormality
                     ? lesions.stream().mapToDouble(DetectedLesion::confidence).max().orElse(0.85)
@@ -248,17 +259,17 @@ public class ExternalPhotoTriageDetector {
                 String desc;
 
                 if ("VERRUCOUS".equals(detectedCategory)) {
-                    lesionType = "Elevated skin lesion / wart (suspected verruca or keratosis)";
+                    lesionType = "a raised skin area";
                     region = "Skin Surface";
-                    desc = "Elevated skin surface lesion with irregular texture noted on the skin surface. No acute spreading redness observed.";
+                    desc = "A raised skin area with irregular texture observed on the skin surface.";
                 } else if ("ERYTHEMATOUS".equals(detectedCategory)) {
-                    lesionType = "Redness / localized skin inflammation";
+                    lesionType = "a reddened area";
                     region = "Skin Surface";
-                    desc = "Area of localized skin redness or mild inflammation noted on the skin surface.";
+                    desc = "A reddened area observed on the skin surface.";
                 } else {
-                    lesionType = "Pigmented spot / cutaneous mark";
+                    lesionType = "a darker patch";
                     region = "Skin Surface";
-                    desc = "Localized pigmented area or spot noted on the skin surface with distinct borders.";
+                    desc = "A darker patch observed on the skin surface.";
                 }
 
                 lesions.add(new DetectedLesion(

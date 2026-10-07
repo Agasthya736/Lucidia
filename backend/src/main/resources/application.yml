@@ -42,6 +42,10 @@ lucidia:
   auth:
     # MUST be false in production. Set lucidia.auth.allow-mock=true ONLY in local dev.
     allow-mock: ${LUCIDIA_ALLOW_MOCK:false}
+  triage:
+    confidence-threshold: ${TRIAGE_CONFIDENCE_THRESHOLD:0.85}
+    inconclusive-threshold: ${TRIAGE_INCONCLUSIVE_THRESHOLD:0.70}
+    min-lesion-area-fraction: ${TRIAGE_MIN_LESION_AREA_FRACTION:0.0005}
   edge-ai:
     triage-model-version: v0.1
   ollama:

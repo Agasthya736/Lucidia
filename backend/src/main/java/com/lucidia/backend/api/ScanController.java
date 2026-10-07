@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lucidia.backend.auth.User;
 import com.lucidia.backend.auth.UserRepository;
@@ -265,6 +266,16 @@ public class ScanController {
     }
 
     private ScanDetail toDetail(Scan scan) throws IOException {
+        String resultBand = null;
+        String bandMessage = null;
+        if (scan.getTriageJson() != null && !scan.getTriageJson().isBlank()) {
+            try {
+                JsonNode n = objectMapper.readTree(scan.getTriageJson());
+                resultBand = com.lucidia.backend.triage.AggregatedFindings.mapToResultBand(n.path("overallStatus").asText(null));
+                bandMessage = com.lucidia.backend.triage.AggregatedFindings.getBandMessage(resultBand);
+            } catch (Exception ignored) {}
+        }
+
         return new ScanDetail(
                 scan.getId(),
                 scan.getStatus().name(),
@@ -288,7 +299,9 @@ public class ScanController {
                 scan.getErrorMessage(),
                 scan.getCreatedAt(),
                 scan.getCompletedAt(),
-                scan.getFinalizedAt()
+                scan.getFinalizedAt(),
+                resultBand,
+                bandMessage
         );
     }
 

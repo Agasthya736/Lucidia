@@ -35,7 +35,7 @@ class TriageDetectorTest {
         assertNotNull(findings);
         assertEquals(0, findings.sliceIndex());
         assertFalse(findings.hasAbnormality());
-        assertEquals("NORMAL", findings.classification());
+        assertEquals("NO_FINDINGS_DETECTED", findings.classification());
         assertTrue(findings.confidence() >= 0.85);
         assertTrue(findings.lesions().isEmpty());
     }
@@ -49,7 +49,7 @@ class TriageDetectorTest {
 
         assertNotNull(findings);
         assertTrue(findings.hasAbnormality());
-        assertEquals("ABNORMAL", findings.classification());
+        assertEquals("FINDINGS_DETECTED", findings.classification());
         assertFalse(findings.lesions().isEmpty());
 
         DetectedLesion lesion = findings.lesions().get(0);
@@ -73,7 +73,7 @@ class TriageDetectorTest {
 
         assertEquals(2, agg.totalSlices());
         assertEquals(0, agg.abnormalSlicesCount());
-        assertEquals("NORMAL", agg.overallStatus());
+        assertEquals("NO_FINDINGS_DETECTED", agg.overallStatus());
         assertTrue(agg.isHighConfidenceClean(0.85));
     }
 
@@ -91,7 +91,7 @@ class TriageDetectorTest {
 
         assertEquals(2, agg.totalSlices());
         assertEquals(1, agg.abnormalSlicesCount());
-        assertEquals("ABNORMAL", agg.overallStatus());
+        assertEquals("FINDINGS_DETECTED", agg.overallStatus());
         assertFalse(agg.isHighConfidenceClean(0.85));
         assertFalse(agg.topLesions().isEmpty());
     }
@@ -116,7 +116,7 @@ class TriageDetectorTest {
                 ));
                 assertNotNull(realFindings);
                 assertTrue(realFindings.totalSlices() > 0);
-                assertEquals("ABNORMAL", realFindings.overallStatus());
+                assertEquals("FINDINGS_DETECTED", realFindings.overallStatus());
                 assertFalse(realFindings.topLesions().isEmpty());
                 DetectedLesion top = realFindings.topLesions().get(0);
                 System.out.println("Top lesion: " + top.lesionType() + " in " + top.anatomicalRegion() + " box: " + top.boundingBox());

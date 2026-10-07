@@ -112,12 +112,138 @@ enum UrgencyLevel {
   String get description {
     switch (this) {
       case UrgencyLevel.urgent:
-        return 'Significant focal abnormality detected. Immediate clinical review required.';
+        return 'The tool detected features that may need prompt attention. See a doctor soon.';
       case UrgencyLevel.followUpRecommended:
-        return 'Lesion identified requiring interval radiological monitoring or correlation.';
+        return 'The tool detected features that should be reviewed or monitored by a physician.';
       case UrgencyLevel.routine:
-        return 'Visualized anatomy unremarkable. Standard clinical follow-up.';
+        return 'The tool did not detect urgent features. Consult a doctor if you have symptoms.';
     }
+  }
+}
+
+/// The 3 official result bands for Lucidia:
+/// - FINDINGS_DETECTED (Amber)
+/// - INCONCLUSIVE (Grey)
+/// - NO_FINDINGS_DETECTED (Blue)
+/// Green is never used.
+enum ResultBand {
+  findingsDetected,
+  inconclusive,
+  noFindingsDetected;
+
+  static ResultBand fromString(String? value) {
+    if (value == null || value.trim().isEmpty) return ResultBand.inconclusive;
+    final normalized = value.trim().toUpperCase().replaceAll(' ', '_').replaceAll('-', '_');
+    if (normalized.contains('FINDINGS_DETECTED') || normalized.contains('ABNORMAL')) {
+      return ResultBand.findingsDetected;
+    }
+    if (normalized.contains('NO_FINDINGS_DETECTED') || normalized.contains('NORMAL') || normalized.contains('CLEAN')) {
+      return ResultBand.noFindingsDetected;
+    }
+    return ResultBand.inconclusive;
+  }
+
+  Color get color {
+    switch (this) {
+      case ResultBand.findingsDetected:
+        return const Color(0xFFD97706); // Amber
+      case ResultBand.inconclusive:
+        return const Color(0xFF64748B); // Grey
+      case ResultBand.noFindingsDetected:
+        return const Color(0xFF2563EB); // Blue
+    }
+  }
+
+  Color get backgroundColor {
+    switch (this) {
+      case ResultBand.findingsDetected:
+        return const Color(0xFFD97706).withValues(alpha: 0.14);
+      case ResultBand.inconclusive:
+        return const Color(0xFF64748B).withValues(alpha: 0.14);
+      case ResultBand.noFindingsDetected:
+        return const Color(0xFF2563EB).withValues(alpha: 0.14);
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case ResultBand.findingsDetected:
+        return Icons.warning_amber_rounded;
+      case ResultBand.inconclusive:
+        return Icons.help_outline_rounded;
+      case ResultBand.noFindingsDetected:
+        return Icons.info_outline_rounded;
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case ResultBand.findingsDetected:
+        return 'FINDINGS DETECTED';
+      case ResultBand.inconclusive:
+        return 'INCONCLUSIVE';
+      case ResultBand.noFindingsDetected:
+        return 'NO FINDINGS DETECTED';
+    }
+  }
+
+  String get message {
+    switch (this) {
+      case ResultBand.findingsDetected:
+        return 'The tool detected features that may need attention. See a doctor.';
+      case ResultBand.inconclusive:
+        return 'Could not assess this image. Please see a doctor if you are concerned.';
+      case ResultBand.noFindingsDetected:
+        return 'The tool did not detect the features it looks for. This is NOT a clearance. If you have symptoms, see a doctor.';
+    }
+  }
+}
+
+/// Reusable ResultBand badge component
+class ResultBandBadge extends StatelessWidget {
+  final ResultBand band;
+  final bool showIcon;
+  final bool compact;
+  final double fontSize;
+
+  const ResultBandBadge({
+    super.key,
+    required this.band,
+    this.showIcon = true,
+    this.compact = false,
+    this.fontSize = 11,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: compact
+          ? const EdgeInsets.symmetric(horizontal: 8, vertical: 3)
+          : const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: band.backgroundColor,
+        borderRadius: BorderRadius.circular(compact ? 6 : 8),
+        border: Border.all(color: band.color.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showIcon) ...[
+            Icon(band.icon, color: band.color, size: compact ? 12 : 14),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            band.label,
+            style: TextStyle(
+              color: band.color,
+              fontSize: fontSize,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

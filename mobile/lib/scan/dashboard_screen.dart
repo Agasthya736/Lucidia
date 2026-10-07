@@ -70,7 +70,7 @@ class DashboardScreenState extends State<DashboardScreen> {
   }
 
   Color _statusColor(String status, bool flagged) {
-    if (status == 'FINALIZED') return LucidiaColors.success;
+    if (status == 'FINALIZED' || status == 'COMPLETED') return LucidiaColors.teal;
     if (status == 'FAILED') return LucidiaColors.error;
     if (status == 'PROCESSING' || status == 'RECEIVED') return LucidiaColors.warning;
     if (flagged) return LucidiaColors.warning;
@@ -263,7 +263,13 @@ class DashboardScreenState extends State<DashboardScreen> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                      if (scan['report'] is Map && scan['report']['severity'] != null) ...[
+                                      if (scan['resultBand'] != null) ...[
+                                        const SizedBox(width: 8),
+                                        ResultBandBadge(
+                                          band: ResultBand.fromString(scan['resultBand']),
+                                          compact: true,
+                                        ),
+                                      ] else if (scan['report'] is Map && scan['report']['severity'] != null) ...[
                                         const SizedBox(width: 8),
                                         UrgencyBadge(
                                           level: UrgencyLevel.fromString(scan['report']['severity']),

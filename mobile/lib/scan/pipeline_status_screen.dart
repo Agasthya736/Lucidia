@@ -29,7 +29,7 @@ class _PipelineStatusScreenState extends State<PipelineStatusScreen> {
     ),
     _PipelineStep(
       title: 'Assessing Triage Evidence',
-      subtitle: 'Classifying clean scans vs. escalating abnormal findings',
+      subtitle: 'Analyzing scan images',
       icon: Icons.filter_alt_outlined,
     ),
     _PipelineStep(

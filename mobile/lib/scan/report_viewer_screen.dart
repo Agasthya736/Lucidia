@@ -227,7 +227,6 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
     final bool isExternal = modality == 'EXTERNAL_PHOTO';
     final int sliceCount = scan['sliceCount'] ?? 1;
 
-    final String severity = (report['severity'] ?? 'ROUTINE').toString().toUpperCase();
     final String impression = report['impression'] ?? 'No significant abnormality detected.';
     final String patientFriendly = report['patientFriendlySummary'] as String? ?? '';
     final String recommendations =
@@ -237,7 +236,9 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         ((triage['overallConfidence'] as num?)?.toDouble() ?? 0.88);
     final String generatedBy = report['generatedBy'] as String? ?? 'Lucidia AI Pipeline';
 
-    final level = UrgencyLevel.fromString(severity);
+    final String resultBandStr = scan['resultBand'] ?? triage['resultBand'] ?? 'INCONCLUSIVE';
+    final ResultBand resultBand = ResultBand.fromString(resultBandStr);
+    final String bandMessage = scan['bandMessage'] ?? triage['bandMessage'] ?? resultBand.message;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
@@ -248,8 +249,8 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
           _buildProminentDisclaimerBanner(),
           const SizedBox(height: 14),
 
-          // 2. Urgency Banner
-          _buildUrgencyBanner(level, isExternal),
+          // 2. Result Band Banner
+          _buildResultBandBanner(resultBand, bandMessage),
           const SizedBox(height: 14),
 
           // 3. Suspected Disease / Problem Summary Card
@@ -285,7 +286,7 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
           const SizedBox(height: 14),
 
           // 10. Technical Details (collapsed accordion)
-          _buildTechDetailsAccordion(triage, verification, confidence, sliceCount, generatedBy),
+          _buildTechDetailsAccordion(scan, triage, verification, confidence, sliceCount, generatedBy),
         ],
       ),
     );
@@ -307,7 +308,7 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '⚠️ Notice: This analysis is AI-generated for informational guidance only and is NOT a definitive medical diagnosis. Please consult a qualified doctor or healthcare professional for clinical evaluation.',
+              'Not a medical device. Does not diagnose, treat, cure or prevent any condition. Consult a healthcare professional.',
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 12,
@@ -321,54 +322,38 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
     );
   }
 
-  // â”€â”€ 1. Urgency Banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  Widget _buildUrgencyBanner(UrgencyLevel level, bool isExternal) {
-    String headline;
-    String subtext;
-
-    switch (level) {
-      case UrgencyLevel.urgent:
-        headline = 'âš ï¸  Significant Finding Detected';
-        subtext = isExternal
-            ? 'This photograph shows a feature that requires prompt clinical evaluation. Please consult a specialist as soon as possible.'
-            : 'This scan shows a finding that needs immediate clinical attention. Do not delay follow-up.';
-        break;
-      case UrgencyLevel.followUpRecommended:
-        headline = 'ðŸ””  Follow-Up Recommended';
-        subtext = isExternal
-            ? 'A feature was noted that should be monitored or reviewed at your next appointment.'
-            : 'A finding was noted on this scan. Interval monitoring or specialist correlation is advised.';
-        break;
-      case UrgencyLevel.routine:
-        headline = 'âœ…  No Significant Concerns';
-        subtext = isExternal
-            ? 'The image does not show features requiring urgent action. Continue routine monitoring.'
-            : 'The scan appears within normal limits. Standard clinical follow-up is recommended.';
-        break;
-    }
-
+  // ── 1. Result Band Banner ───────────────────────────────────────────
+  Widget _buildResultBandBanner(ResultBand band, String message) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: level.backgroundColor,
+        color: band.backgroundColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: level.color.withValues(alpha: 0.5), width: 1.5),
+        border: Border.all(color: band.color.withValues(alpha: 0.5), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            headline,
-            style: TextStyle(
-              color: level.color,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              height: 1.3,
-            ),
+          Row(
+            children: [
+              Icon(band.icon, color: band.color, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  band.label,
+                  style: TextStyle(
+                    color: band.color,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
-            subtext,
+            message.isNotEmpty ? message : band.message,
             style: TextStyle(color: AppColors.textPrimary, fontSize: 13, height: 1.5),
           ),
         ],
@@ -376,7 +361,6 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
     );
   }
 
-  // â”€â”€ 2. Summary Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // ── 2. Summary Card ──────────────────────────────────────────────────
   Widget _buildSummaryCard(
     Map<String, dynamic> scan,
@@ -419,7 +403,7 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
           Divider(height: 1, color: AppColors.border),
           const SizedBox(height: 14),
           Text(
-            'SUSPECTED CONDITION / FINDING',
+            'WHAT THE TOOL NOTICED',
             style: TextStyle(
               color: LucidiaColors.teal,
               fontSize: 11,
@@ -455,7 +439,7 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
           ),
           const SizedBox(height: 14),
           Text(
-            'What might be the problem:',
+            'Tool Observation:',
             style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 11,
@@ -756,8 +740,9 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
             final region = f['region'] as String? ?? 'Region';
             final status = (f['status'] ?? 'NORMAL').toString().toUpperCase();
             final desc = f['description'] as String? ?? '';
-            final isAbnormal = status == 'ABNORMAL';
-            final Color rowColor = isAbnormal ? LucidiaColors.error : LucidiaColors.success;
+            final isFinding = status == 'ABNORMAL' || status == 'FINDING_NOTED';
+            // Never use green. Amber for finding noted, blue for no findings.
+            final Color rowColor = isFinding ? const Color(0xFFD97706) : const Color(0xFF2563EB);
 
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
@@ -766,7 +751,7 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: rowColor.withValues(alpha: isAbnormal ? 0.4 : 0.2),
+                  color: rowColor.withValues(alpha: isFinding ? 0.4 : 0.2),
                 ),
               ),
               child: Row(
@@ -780,7 +765,7 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isAbnormal ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+                      isFinding ? Icons.warning_amber_rounded : Icons.info_outline,
                       color: rowColor,
                       size: 14,
                     ),
@@ -809,7 +794,7 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
-                                isAbnormal ? 'Abnormal' : 'Normal',
+                                isFinding ? 'Finding Noted' : 'No Findings',
                                 style: TextStyle(
                                   color: rowColor,
                                   fontSize: 11,
@@ -844,6 +829,7 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
 
   // â”€â”€ 7. Technical Details (collapsed accordion) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Widget _buildTechDetailsAccordion(
+    Map<String, dynamic> scan,
     Map<String, dynamic> triage,
     Map<String, dynamic> verification,
     double confidence,
@@ -893,9 +879,9 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                     children: [
                       _metricTile('AI Confidence', '${(confidence * 100).toStringAsFixed(0)}%'),
                       const SizedBox(width: 8),
-                      _metricTile('Abnormal Slices', '$abnormalSlices / $sliceCount'),
+                      _metricTile('Slices with Findings', '$abnormalSlices / $sliceCount'),
                       const SizedBox(width: 8),
-                      _metricTile('Status', triage['overallStatus'] as String? ?? 'NORMAL'),
+                      _metricTile('Result Band', (scan['resultBand'] ?? triage['resultBand'] ?? 'INCONCLUSIVE').toString().replaceAll('_', ' ')),
                     ],
                   ),
                   const SizedBox(height: 12),
