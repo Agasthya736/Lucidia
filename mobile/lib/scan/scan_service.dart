@@ -13,6 +13,30 @@ class ValidationException implements Exception {
   String toString() => message;
 }
 
+class ScanSubmissionException implements Exception {
+  const ScanSubmissionException({
+    required this.statusCode,
+    required this.message,
+    this.code,
+  });
+
+  final int statusCode;
+  final String message;
+  final String? code;
+
+  @override
+  String toString() => message;
+}
+
+class ConsentRequiredException extends ScanSubmissionException {
+  const ConsentRequiredException()
+      : super(
+          statusCode: 403,
+          code: 'CONSENT_REQUIRED',
+          message: 'Please accept the consent screen first',
+        );
+}
+
 class ScanService {
   static const String baseUrl = "https://lucidia-backend-794373598684.asia-south1.run.app";
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -60,35 +84,49 @@ class ScanService {
     final streamed = await request.send();
     final body = await streamed.stream.bytesToString();
 
-    if (streamed.statusCode == 400) {
-      try {
-        final json = jsonDecode(body);
-        throw Exception(json['message'] ?? 'Image not suitable for analysis.');
-      } catch (e) {
-        if (e is Exception && e.toString().contains('not suitable')) rethrow;
-        throw Exception('Submission rejected (400): $body');
-      }
-    }
-
-    if (streamed.statusCode == 422) {
-      try {
-        final json = jsonDecode(body);
-        throw ValidationException(json['message'] ?? 'Image does not meet clinical requirements.');
-      } catch (e) {
-        if (e is ValidationException) rethrow;
-        throw ValidationException('Validation rejected (422): $body');
-      }
-    }
-
-    if (streamed.statusCode == 429) {
-      final json = jsonDecode(body);
-      throw Exception(json['message'] ?? 'Monthly scan quota reached. Please try again next month.');
-    }
-
     if (streamed.statusCode != 200 && streamed.statusCode != 202) {
-      throw Exception('Submit failed (${streamed.statusCode}): $body');
+      final error = parseSubmissionError(streamed.statusCode, body);
+      if (error is ConsentRequiredException) throw error;
+      if (error.statusCode == 422) throw ValidationException(error.message);
+      throw error;
     }
     return jsonDecode(body);
+  }
+
+  static ScanSubmissionException parseSubmissionError(int statusCode, String body) {
+    String? message;
+    String? code;
+    if (body.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic>) {
+          message = decoded['message']?.toString();
+          code = decoded['code']?.toString();
+        }
+      } on FormatException {
+        message = body.trim();
+      }
+    }
+
+    message ??= switch (statusCode) {
+      400 => 'Image not suitable for analysis.',
+      403 => 'Please accept the consent screen first',
+      422 => 'Image does not meet clinical requirements.',
+      429 => 'Monthly scan quota reached. Please try again next month.',
+      _ => 'The server could not process your request. Please try again.',
+    };
+    if (statusCode == 403 &&
+        (code == 'CONSENT_REQUIRED' ||
+            message.toLowerCase().contains('consent'))) {
+      return const ConsentRequiredException();
+    }
+    return ScanSubmissionException(
+      statusCode: statusCode,
+      code: code,
+      message: message.trim().isEmpty
+          ? 'The server could not process your request. Please try again.'
+          : message,
+    );
   }
 
   Future<Map<String, dynamic>> submitScan(List<int> bytes, String filename, {String modality = 'CT_SERIES', String? clinicalNotes}) async {

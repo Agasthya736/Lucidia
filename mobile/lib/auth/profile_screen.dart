@@ -3,6 +3,8 @@ import '../shared/theme.dart';
 import 'auth_service.dart';
 import 'login_screen.dart';
 import '../scan/scan_service.dart';
+import '../shared/privacy_policy_link.dart';
+import 'about_tool_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -16,6 +18,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final ScanService _scanService = ScanService();
 
   bool _loggingOut = false;
+  bool _deletingAccount = false;
 
   bool _loadingProfile = true;
   String? _profileError;
@@ -78,36 +81,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
-    );
-  }
-
-  void _showPrivacyPolicy() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: LucidiaColors.surfaceElevated,
-        title: Text('Privacy Policy & Data Handling', style: TextStyle(color: LucidiaColors.textPrimary)),
-        content: SingleChildScrollView(
-          child: Text(
-            'Lucidia Data Protection & Privacy Notice:\n\n'
-            '1. Image Data: Scan images are transmitted over encrypted TLS channels and stored securely '
-            'in Google Cloud Storage. Images can be permanently deleted at any time from your account.\n\n'
-            '2. Personal Data: Your name, email, and profile picture (if using Google Sign-In) are stored '
-            'to identify your account. We do not sell or share personal data with third parties.\n\n'
-            '3. AI Analysis: Images are processed by on-device and cloud AI models to generate informational '
-            'reports. Processing is done in compliance with our data processing agreements.\n\n'
-            '4. Retention: You may request deletion of all your data at any time by contacting us or '
-            'deleting your account.',
-            style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 13, height: 1.4),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -174,6 +147,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildSystemInfoCard(),
               const SizedBox(height: 16),
               _buildComplianceCard(),
+              const SizedBox(height: 16),
+              _buildRetentionCard(),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _deletingAccount ? null : _confirmAccountDeletion,
+                icon: _deletingAccount
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.delete_forever_outlined),
+                label: const Text('Delete my account and data'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: LucidiaColors.error,
+                  side: const BorderSide(color: LucidiaColors.error),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
               const SizedBox(height: 32),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
@@ -488,7 +480,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               leading: const Icon(Icons.privacy_tip_outlined, color: LucidiaColors.teal),
               title: Text('Privacy Policy & Data Handling', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
               trailing: Icon(Icons.chevron_right, color: LucidiaColors.textSecondary),
-              onTap: _showPrivacyPolicy,
+              onTap: () => openPrivacyPolicy(context),
             ),
           ),
           const Divider(height: 1),
@@ -502,9 +494,121 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: _showDisclaimerNotice,
             ),
           ),
+          const Divider(height: 1),
+          Material(
+            color: Colors.transparent,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.info_outline, color: LucidiaColors.teal),
+              title: Text('About this tool', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
+              trailing: Icon(Icons.chevron_right, color: LucidiaColors.textSecondary),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const AboutToolScreen()),
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildRetentionCard() {
+    final int? retentionDays = _userProfile?['retentionDays'] as int?;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: lucidiaCardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Data retention',
+            style: TextStyle(
+              color: LucidiaColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Choose how long scan data is kept.',
+            style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<int?>(
+            initialValue: retentionDays,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Keep data',
+            ),
+            items: const [
+              DropdownMenuItem<int?>(value: 30, child: Text('30 days')),
+              DropdownMenuItem<int?>(value: null, child: Text('Keep until deleted')),
+            ],
+            onChanged: (days) => _saveRetention(days),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveRetention(int? days) async {
+    try {
+      await _scanService.updateRetention(days);
+      if (!mounted) return;
+      setState(() {
+        _userProfile = {...?_userProfile, 'retentionDays': days};
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data retention preference saved.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save retention preference: $error')),
+      );
+    }
+  }
+
+  Future<void> _confirmAccountDeletion() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete account and data?'),
+        content: const Text(
+          'This permanently deletes your account and associated scan data. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: LucidiaColors.error),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete my account and data'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingAccount = true);
+    try {
+      await _scanService.deleteAccount();
+      await _authService.logout();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not delete account: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _deletingAccount = false);
+    }
   }
 
   Widget _infoRow(IconData icon, String label, String value) {

@@ -6,7 +6,9 @@ import '../scan/scan_capture_screen.dart';
 import '../auth/profile_screen.dart';
 
 class MainShellScreen extends StatefulWidget {
-  const MainShellScreen({super.key});
+  const MainShellScreen({super.key, required this.onConsentRequired});
+
+  final VoidCallback onConsentRequired;
 
   @override
   State<MainShellScreen> createState() => _MainShellScreenState();
@@ -35,7 +37,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
         onViewAllScansTap: () => _onTabSelected(1),
       ),
       ScansListScreen(key: _scansListKey),
-      const ScanCaptureScreen(),
+      ScanCaptureScreen(onConsentRequired: widget.onConsentRequired),
       const ProfileScreen(),
     ];
 

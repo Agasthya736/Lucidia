@@ -66,7 +66,10 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
       _sliceLoading = true;
     });
     try {
-      final bytes = await _scanService.fetchSliceImage(widget.scanId, sliceIndex);
+      final bytes = await _scanService.fetchSliceImage(
+        widget.scanId,
+        sliceIndex,
+      );
       if (mounted) {
         setState(() {
           _sliceImages[sliceIndex] = bytes;
@@ -77,8 +80,6 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
       if (mounted) setState(() => _sliceLoading = false);
     }
   }
-
-
 
   Future<void> _askQuestion(String question) async {
     final q = question.trim();
@@ -103,7 +104,8 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         setState(() {
           _chatMessages.add({
             'role': 'ai',
-            'text': 'Sorry, I could not answer that right now. Please discuss any questions about your scan with your doctor.'
+            'text':
+                'Sorry, I could not answer that right now. Please discuss any questions about your scan with your doctor.',
           });
           _askingQuestion = false;
         });
@@ -113,14 +115,17 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
 
   Future<void> _downloadPdf() async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preparing report PDF...')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Preparing report PDF...')));
       final bytes = await _scanService.downloadReportPdf(widget.scanId);
       final studyId = (widget.scanId.length >= 8)
           ? widget.scanId.substring(0, 8).toUpperCase()
           : widget.scanId.toUpperCase();
-      final savedPath = await savePdfAndOpen(bytes, 'Lucidia_Report_$studyId.pdf');
+      final savedPath = await savePdfAndOpen(
+        bytes,
+        'Lucidia_Report_$studyId.pdf',
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -133,7 +138,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('PDF error: ${e.toString().replaceAll("Exception: ", "")}')),
+        SnackBar(
+          content: Text(
+            'PDF error: ${e.toString().replaceAll("Exception: ", "")}',
+          ),
+        ),
       );
     }
   }
@@ -146,7 +155,10 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
       appBar: AppBar(
         title: Text(
           'Scan Report',
-          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: AppColors.surface,
         iconTheme: IconThemeData(color: AppColors.textPrimary),
@@ -172,18 +184,21 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
       ),
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator(color: LucidiaColors.teal))
+            ? const Center(
+                child: CircularProgressIndicator(color: LucidiaColors.teal),
+              )
             : _error != null
-                ? _buildError()
-                : (_scan != null && _scan!['status'] == 'FAILED')
-                    ? _buildFailedView()
-                    : _buildReport(),
+            ? _buildError()
+            : (_scan != null && _scan!['status'] == 'FAILED')
+            ? _buildFailedView()
+            : _buildReport(),
       ),
     );
   }
 
   Widget _buildFailedView() {
-    final errorMessage = (_scan?['errorMessage'] as String?)?.trim().isNotEmpty == true
+    final errorMessage =
+        (_scan?['errorMessage'] as String?)?.trim().isNotEmpty == true
         ? _scan!['errorMessage'] as String
         : 'Something went wrong. Please try again, or see a doctor if you are concerned.';
 
@@ -193,16 +208,28 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.info_outline, color: LucidiaColors.warning, size: 52),
+            const Icon(
+              Icons.info_outline,
+              color: LucidiaColors.warning,
+              size: 52,
+            ),
             const SizedBox(height: 16),
             Text(
               'Analysis Could Not Be Completed',
-              style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 10),
             Text(
               errorMessage,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.4),
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+                height: 1.4,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -224,11 +251,19 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cloud_off_outlined, color: AppColors.textSecondary, size: 48),
+            Icon(
+              Icons.cloud_off_outlined,
+              color: AppColors.textSecondary,
+              size: 48,
+            ),
             const SizedBox(height: 16),
             Text(
               'Could not load report',
-              style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -260,22 +295,32 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
     final triage = scan['triage'] as Map<String, dynamic>? ?? {};
     final verification = scan['verification'] as Map<String, dynamic>? ?? {};
 
-    final String modality = (scan['modality'] ?? 'CT_SERIES').toString().toUpperCase();
+    final String modality = (scan['modality'] ?? 'CT_SERIES')
+        .toString()
+        .toUpperCase();
     final bool isExternal = modality == 'EXTERNAL_PHOTO';
     final int sliceCount = scan['sliceCount'] ?? 1;
 
-    final String impression = report['impression'] ?? 'No significant abnormality detected.';
-    final String patientFriendly = report['patientFriendlySummary'] as String? ?? '';
+    final String impression =
+        report['impression'] ?? 'No significant abnormality detected.';
+    final String patientFriendly =
+        report['patientFriendlySummary'] as String? ?? '';
     final String recommendations =
-        report['recommendations'] as String? ?? 'Routine clinical follow-up as indicated.';
-    final List<dynamic> clinicalFindings = report['clinicalFindings'] as List<dynamic>? ?? [];
-    final double confidence = (report['detectorConfidence'] as num?)?.toDouble() ??
+        report['recommendations'] as String? ??
+        'Routine clinical follow-up as indicated.';
+    final List<dynamic> clinicalFindings =
+        report['clinicalFindings'] as List<dynamic>? ?? [];
+    final double confidence =
+        (report['detectorConfidence'] as num?)?.toDouble() ??
         ((triage['overallConfidence'] as num?)?.toDouble() ?? 0.88);
-    final String generatedBy = report['generatedBy'] as String? ?? 'Lucidia AI Pipeline';
+    final String generatedBy =
+        report['generatedBy'] as String? ?? 'Lucidia AI Pipeline';
 
-    final String resultBandStr = scan['resultBand'] ?? triage['resultBand'] ?? 'INCONCLUSIVE';
+    final String resultBandStr =
+        scan['resultBand'] ?? triage['resultBand'] ?? 'INCONCLUSIVE';
     final ResultBand resultBand = ResultBand.fromString(resultBandStr);
-    final String bandMessage = scan['bandMessage'] ?? triage['bandMessage'] ?? resultBand.message;
+    final String bandMessage =
+        scan['bandMessage'] ?? triage['bandMessage'] ?? resultBand.message;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
@@ -336,7 +381,14 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
           const SizedBox(height: 14),
 
           // 12. Technical Details (collapsed accordion)
-          _buildTechDetailsAccordion(scan, triage, verification, confidence, sliceCount, generatedBy),
+          _buildTechDetailsAccordion(
+            scan,
+            triage,
+            verification,
+            confidence,
+            sliceCount,
+            generatedBy,
+          ),
         ],
       ),
     );
@@ -379,7 +431,10 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
       decoration: BoxDecoration(
         color: band.backgroundColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: band.color.withValues(alpha: 0.5), width: 1.5),
+        border: Border.all(
+          color: band.color.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -404,7 +459,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
           const SizedBox(height: 8),
           Text(
             message.isNotEmpty ? message : band.message,
-            style: TextStyle(color: AppColors.textPrimary, fontSize: 13, height: 1.5),
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 13,
+              height: 1.5,
+            ),
           ),
         ],
       ),
@@ -420,8 +479,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
     int sliceCount,
   ) {
     final String id = scan['id'] as String? ?? '--------';
-    final String studyId = id.length >= 8 ? id.substring(0, 8).toUpperCase() : id.toUpperCase();
-    final String observation = (report['executiveSummary'] as String?)?.trim().isNotEmpty == true
+    final String studyId = id.length >= 8
+        ? id.substring(0, 8).toUpperCase()
+        : id.toUpperCase();
+    final String observation =
+        (report['executiveSummary'] as String?)?.trim().isNotEmpty == true
         ? (report['executiveSummary'] as String)
         : (isExternal ? 'Skin surface feature noted' : 'Imaging feature noted');
 
@@ -444,7 +506,9 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                 ),
               ),
               _pill(
-                isExternal ? 'Clinical Photograph' : 'CT Scan  ·  $sliceCount slices',
+                isExternal
+                    ? 'Clinical Photograph'
+                    : 'CT Scan  ·  $sliceCount slices',
                 isExternal ? LucidiaColors.violet : LucidiaColors.teal,
               ),
             ],
@@ -467,11 +531,17 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
             decoration: BoxDecoration(
               color: LucidiaColors.teal.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: LucidiaColors.teal.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: LucidiaColors.teal.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.search_outlined, color: LucidiaColors.teal, size: 22),
+                const Icon(
+                  Icons.search_outlined,
+                  color: LucidiaColors.teal,
+                  size: 22,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -526,7 +596,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.record_voice_over_outlined, color: LucidiaColors.teal, size: 18),
+              Icon(
+                Icons.record_voice_over_outlined,
+                color: LucidiaColors.teal,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Text(
                 'IN PLAIN ENGLISH',
@@ -542,7 +616,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
           const SizedBox(height: 10),
           Text(
             explanation,
-            style: TextStyle(color: AppColors.textPrimary, fontSize: 14, height: 1.55),
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+              height: 1.55,
+            ),
           ),
         ],
       ),
@@ -564,7 +642,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.task_alt_outlined, color: LucidiaColors.teal, size: 20),
+              Icon(
+                Icons.task_alt_outlined,
+                color: LucidiaColors.teal,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 'WHAT TO DO NEXT',
@@ -624,8 +706,12 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
   }
 
   // ── Possible Conditions Card (ONLY for FINDINGS_DETECTED) ──────────────
-  Widget _buildPossibleConditionsCard(Map<String, dynamic> report, bool isExternal) {
-    List<dynamic> rawConditions = report['possibleConditions'] as List<dynamic>? ?? [];
+  Widget _buildPossibleConditionsCard(
+    Map<String, dynamic> report,
+    bool isExternal,
+  ) {
+    List<dynamic> rawConditions =
+        report['possibleConditions'] as List<dynamic>? ?? [];
     List<Map<String, String>> conditions = [];
 
     if (rawConditions.isNotEmpty) {
@@ -644,30 +730,36 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         conditions = [
           {
             'name': 'Seborrheic keratosis',
-            'description': 'A very common non-cancerous skin growth that often appears warty or slightly elevated.'
+            'description':
+                'A very common non-cancerous skin growth that often appears warty or slightly elevated.',
           },
           {
             'name': 'Benign nevus (mole)',
-            'description': 'A common collection of pigment cells forming a small, elevated spot.'
+            'description':
+                'A common collection of pigment cells forming a small, elevated spot.',
           },
           {
             'name': 'Viral wart (verruca)',
-            'description': 'A common harmless skin elevation caused by localized viral infection.'
+            'description':
+                'A common harmless skin elevation caused by localized viral infection.',
           },
         ];
       } else {
         conditions = [
           {
             'name': 'Benign granuloma',
-            'description': 'A small area of tissue healing, frequently residual from past resolved inflammation.'
+            'description':
+                'A small area of tissue healing, frequently residual from past resolved inflammation.',
           },
           {
             'name': 'Intrapulmonary lymph node',
-            'description': 'A normal immune lymph node located within lung parenchyma.'
+            'description':
+                'A normal immune lymph node located within lung parenchyma.',
           },
           {
             'name': 'Atelectasis (partial lung collapse)',
-            'description': 'Temporary partial collapse or under-inflation of small airway regions.'
+            'description':
+                'Temporary partial collapse or under-inflation of small airway regions.',
           },
         ];
       }
@@ -681,7 +773,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.menu_book_outlined, color: LucidiaColors.teal, size: 20),
+              const Icon(
+                Icons.menu_book_outlined,
+                color: LucidiaColors.teal,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -705,51 +801,59 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          ...conditions.map((c) => Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+          ...conditions.map(
+            (c) => Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    c['name'] ?? '',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if ((c['description'] ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 4),
                     Text(
-                      c['name'] ?? '',
+                      c['description']!,
                       style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        height: 1.4,
                       ),
                     ),
-                    if ((c['description'] ?? '').isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        c['description']!,
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
                   ],
-                ),
-              )),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 6),
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: const Color(0xFFD97706).withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.3)),
+              border: Border.all(
+                color: const Color(0xFFD97706).withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.info_outline, color: Color(0xFFD97706), size: 16),
+                const Icon(
+                  Icons.info_outline,
+                  color: Color(0xFFD97706),
+                  size: 16,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -791,14 +895,21 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFD97706).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.4), width: 1.2),
+        border: Border.all(
+          color: const Color(0xFFD97706).withValues(alpha: 0.4),
+          width: 1.2,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: const [
-              Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 20),
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFD97706),
+                size: 20,
+              ),
               SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -813,33 +924,35 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          ...signs.map((sign) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      margin: const EdgeInsets.only(top: 6, right: 10),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFD97706),
-                        shape: BoxShape.circle,
+          ...signs.map(
+            (sign) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    margin: const EdgeInsets.only(top: 6, right: 10),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFD97706),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      sign,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                        height: 1.45,
                       ),
                     ),
-                    Expanded(
-                      child: Text(
-                        sign,
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 13,
-                          height: 1.45,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -854,7 +967,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         side: BorderSide(color: LucidiaColors.teal.withValues(alpha: 0.5)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      icon: const Icon(Icons.rate_review_outlined, color: LucidiaColors.teal, size: 20),
+      icon: const Icon(
+        Icons.rate_review_outlined,
+        color: LucidiaColors.teal,
+        size: 20,
+      ),
       label: Text(
         'Send Feedback on this Report',
         style: TextStyle(
@@ -869,16 +986,23 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
   void _showFeedbackDialog() {
     final textController = TextEditingController();
     bool? helpful;
+    bool submitting = false;
+    String? errorMessage;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Text(
             'Report Feedback',
-            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -888,6 +1012,10 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                 'Was this information clear and helpful?',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
               ),
+              if (errorMessage != null) ...[
+                const SizedBox(height: 8),
+                Text(errorMessage!, style: const TextStyle(color: Colors.red)),
+              ],
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -895,13 +1023,15 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                   ChoiceChip(
                     label: const Text('Yes \u{1F44D}'),
                     selected: helpful == true,
-                    onSelected: (sel) => setDialogState(() => helpful = sel ? true : null),
+                    onSelected: (sel) =>
+                        setDialogState(() => helpful = sel ? true : null),
                   ),
                   const SizedBox(width: 12),
                   ChoiceChip(
                     label: const Text('No \u{1F44E}'),
                     selected: helpful == false,
-                    onSelected: (sel) => setDialogState(() => helpful = sel ? false : null),
+                    onSelected: (sel) =>
+                        setDialogState(() => helpful = sel ? false : null),
                   ),
                 ],
               ),
@@ -911,9 +1041,15 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                 maxLines: 3,
                 style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'Any comments or suggestions for improving this tool?',
-                  hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 12),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  hintText:
+                      'Any comments or suggestions for improving this tool?',
+                  hintStyle: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ],
@@ -924,33 +1060,69 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Thank you for your feedback!')),
-                );
-              },
-              child: const Text('Submit'),
+              onPressed: helpful == null || submitting
+                  ? null
+                  : () async {
+                      setDialogState(() {
+                        submitting = true;
+                        errorMessage = null;
+                      });
+                      try {
+                        await _scanService.submitFeedback(
+                          widget.scanId,
+                          helpful == true ? 5 : 1,
+                          comment: textController.text,
+                        );
+                        if (!ctx.mounted || !mounted) return;
+                        Navigator.of(ctx).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Thank you for your feedback!'),
+                          ),
+                        );
+                      } catch (error) {
+                        if (ctx.mounted) {
+                          setDialogState(() {
+                            submitting = false;
+                            errorMessage = error.toString();
+                          });
+                        }
+                      }
+                    },
+              child: submitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Submit'),
             ),
           ],
         ),
       ),
-    );
+    ).whenComplete(textController.dispose);
   }
 
   // ── 5. Image Viewer ──────────────────────────────────────────────────
-  Widget _buildImageViewer(int totalSlices, Map<String, dynamic> triage, bool isExternal) {
+  Widget _buildImageViewer(
+    int totalSlices,
+    Map<String, dynamic> triage,
+    bool isExternal,
+  ) {
     final sliceBytes = _sliceImages[_selectedSliceIndex];
-    final List<dynamic> sliceFindingsList = triage['sliceFindings'] as List<dynamic>? ?? [];
+    final List<dynamic> sliceFindingsList =
+        triage['sliceFindings'] as List<dynamic>? ?? [];
     List<dynamic> lesions = [];
     if (_selectedSliceIndex < sliceFindingsList.length) {
-      final sliceData = sliceFindingsList[_selectedSliceIndex] as Map<String, dynamic>?;
+      final sliceData =
+          sliceFindingsList[_selectedSliceIndex] as Map<String, dynamic>?;
       lesions = sliceData?['lesions'] as List<dynamic>? ?? [];
     }
 
     double? imageAspectRatio;
     if (_selectedSliceIndex < sliceFindingsList.length) {
-      final sliceData = sliceFindingsList[_selectedSliceIndex] as Map<String, dynamic>?;
+      final sliceData =
+          sliceFindingsList[_selectedSliceIndex] as Map<String, dynamic>?;
       final metrics = sliceData?['metrics'] as Map<String, dynamic>?;
       final res = metrics?['resolution'] as String?;
       if (res != null && res.contains('x')) {
@@ -963,7 +1135,9 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
       }
     }
 
-    final double viewerAspect = isExternal ? (imageAspectRatio ?? 0.75).clamp(0.65, 1.4) : 1.0;
+    final double viewerAspect = isExternal
+        ? (imageAspectRatio ?? 0.75).clamp(0.65, 1.4)
+        : 1.0;
 
     return Container(
       decoration: lucidiaCardDecoration(),
@@ -987,14 +1161,20 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                 if (!isExternal)
                   Text(
                     'Slice ${_selectedSliceIndex + 1} of $totalSlices',
-                    style: TextStyle(color: LucidiaColors.teal, fontSize: 12, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: LucidiaColors.teal,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
               ],
             ),
           ),
           const SizedBox(height: 12),
           ClipRRect(
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(14),
+            ),
             child: AspectRatio(
               aspectRatio: viewerAspect,
               child: Stack(
@@ -1002,7 +1182,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                 children: [
                   Container(color: Colors.black),
                   if (_sliceLoading)
-                    const Center(child: CircularProgressIndicator(color: LucidiaColors.teal))
+                    const Center(
+                      child: CircularProgressIndicator(
+                        color: LucidiaColors.teal,
+                      ),
+                    )
                   else if (sliceBytes != null)
                     Image.memory(sliceBytes, fit: BoxFit.contain)
                   else
@@ -1020,14 +1204,20 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                           const SizedBox(height: 8),
                           Text(
                             'Image preview unavailable',
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   if (lesions.isNotEmpty)
                     CustomPaint(
-                      painter: _OverlayPainter(lesions, imageAspectRatio: imageAspectRatio),
+                      painter: _OverlayPainter(
+                        lesions,
+                        imageAspectRatio: imageAspectRatio,
+                      ),
                     ),
                 ],
               ),
@@ -1090,7 +1280,9 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                isExternal ? 'AREA-BY-AREA FINDINGS' : 'ORGAN-BY-ORGAN FINDINGS',
+                isExternal
+                    ? 'AREA-BY-AREA FINDINGS'
+                    : 'ORGAN-BY-ORGAN FINDINGS',
                 style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 11,
@@ -1107,7 +1299,9 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
             final desc = f['description'] as String? ?? '';
             final isFinding = status == 'ABNORMAL' || status == 'FINDING_NOTED';
             // Never use green. Amber for finding noted, blue for no findings.
-            final Color rowColor = isFinding ? const Color(0xFFD97706) : const Color(0xFF2563EB);
+            final Color rowColor = isFinding
+                ? const Color(0xFFD97706)
+                : const Color(0xFF2563EB);
 
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
@@ -1130,7 +1324,9 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isFinding ? Icons.warning_amber_rounded : Icons.info_outline,
+                      isFinding
+                          ? Icons.warning_amber_rounded
+                          : Icons.info_outline,
                       color: rowColor,
                       size: 14,
                     ),
@@ -1153,7 +1349,10 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: rowColor.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(20),
@@ -1202,7 +1401,9 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
     String generatedBy,
   ) {
     final int abnormalSlices = triage['abnormalSlicesCount'] ?? 0;
-    final String triageSummary = triage['summaryEvidence'] as String? ?? 'Pixel detector analysis complete.';
+    final String triageSummary =
+        triage['summaryEvidence'] as String? ??
+        'Pixel detector analysis complete.';
     final bool verified = verification['verified'] == true;
     final List<dynamic> flags = verification['flags'] as List<dynamic>? ?? [];
 
@@ -1242,31 +1443,56 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                   const SizedBox(height: 14),
                   Row(
                     children: [
-                      _metricTile('AI Confidence', '${(confidence * 100).toStringAsFixed(0)}%'),
+                      _metricTile(
+                        'AI Confidence',
+                        '${(confidence * 100).toStringAsFixed(0)}%',
+                      ),
                       const SizedBox(width: 8),
-                      _metricTile('Slices with Findings', '$abnormalSlices / $sliceCount'),
+                      _metricTile(
+                        'Slices with Findings',
+                        '$abnormalSlices / $sliceCount',
+                      ),
                       const SizedBox(width: 8),
-                      _metricTile('Result Band', (scan['resultBand'] ?? triage['resultBand'] ?? 'INCONCLUSIVE').toString().replaceAll('_', ' ')),
+                      _metricTile(
+                        'Result Band',
+                        (scan['resultBand'] ??
+                                triage['resultBand'] ??
+                                'INCONCLUSIVE')
+                            .toString()
+                            .replaceAll('_', ' '),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Text(
                     triageSummary,
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       Icon(
-                        verified ? Icons.verified_outlined : Icons.warning_amber_rounded,
-                        color: verified ? LucidiaColors.teal : LucidiaColors.error,
+                        verified
+                            ? Icons.verified_outlined
+                            : Icons.warning_amber_rounded,
+                        color: verified
+                            ? LucidiaColors.teal
+                            : LucidiaColors.error,
                         size: 15,
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        verified ? 'Grounding verification passed' : 'Grounding issues flagged',
+                        verified
+                            ? 'Grounding verification passed'
+                            : 'Grounding issues flagged',
                         style: TextStyle(
-                          color: verified ? LucidiaColors.teal : LucidiaColors.error,
+                          color: verified
+                              ? LucidiaColors.teal
+                              : LucidiaColors.error,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1275,15 +1501,23 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                   ),
                   if (flags.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    ...flags.map((f) => Text(
-                          'â€¢ $f',
-                          style: TextStyle(color: LucidiaColors.error, fontSize: 11),
-                        )),
+                    ...flags.map(
+                      (f) => Text(
+                        'â€¢ $f',
+                        style: TextStyle(
+                          color: LucidiaColors.error,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
                   ],
                   const SizedBox(height: 8),
                   Text(
                     'Generated by: $generatedBy',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
@@ -1305,7 +1539,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.forum_outlined, color: LucidiaColors.teal, size: 20),
+              const Icon(
+                Icons.forum_outlined,
+                color: LucidiaColors.teal,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 'ASK QUESTIONS ABOUT THIS REPORT',
@@ -1321,7 +1559,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
           const SizedBox(height: 6),
           Text(
             'Ask our explainable AI anything about this scan in simple everyday terms.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 14),
 
@@ -1351,17 +1593,26 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                   final msg = _chatMessages[i];
                   final isUser = msg['role'] == 'user';
                   return Align(
-                    alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                    alignment: isUser
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.78,
+                      ),
                       decoration: BoxDecoration(
                         color: isUser
                             ? LucidiaColors.teal
                             : AppColors.surfaceElevated,
                         borderRadius: BorderRadius.circular(12),
-                        border: isUser ? null : Border.all(color: AppColors.border),
+                        border: isUser
+                            ? null
+                            : Border.all(color: AppColors.border),
                       ),
                       child: Text(
                         msg['text'] ?? '',
@@ -1387,12 +1638,18 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                   const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: LucidiaColors.teal),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: LucidiaColors.teal,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Text(
                     'Lucidia AI is explaining...',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -1410,8 +1667,14 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
                   onSubmitted: _askQuestion,
                   decoration: InputDecoration(
                     hintText: 'Type your question here...',
-                    hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    hintStyle: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     filled: true,
                     fillColor: AppColors.surface,
                     border: OutlineInputBorder(
@@ -1427,7 +1690,9 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
               ),
               const SizedBox(width: 8),
               IconButton(
-                onPressed: _askingQuestion ? null : () => _askQuestion(_questionController.text),
+                onPressed: _askingQuestion
+                    ? null
+                    : () => _askQuestion(_questionController.text),
                 icon: const Icon(Icons.send_rounded, color: LucidiaColors.teal),
                 tooltip: 'Send Question',
               ),
@@ -1441,7 +1706,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
   Widget _chatChip(String label) {
     return ActionChip(
       label: Text(label),
-      labelStyle: const TextStyle(color: LucidiaColors.teal, fontSize: 11, fontWeight: FontWeight.w600),
+      labelStyle: const TextStyle(
+        color: LucidiaColors.teal,
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
       backgroundColor: LucidiaColors.teal.withValues(alpha: 0.10),
       side: BorderSide(color: LucidiaColors.teal.withValues(alpha: 0.3)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1463,7 +1732,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.download_for_offline_outlined, color: LucidiaColors.teal, size: 22),
+              const Icon(
+                Icons.download_for_offline_outlined,
+                color: LucidiaColors.teal,
+                size: 22,
+              ),
               const SizedBox(width: 8),
               Text(
                 'Save & Download Your Report',
@@ -1478,7 +1751,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
           const SizedBox(height: 6),
           Text(
             'Download the complete clean report as a PDF to save on your device or share with your doctor.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.45),
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              height: 1.45,
+            ),
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -1490,7 +1767,9 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: LucidiaColors.teal,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           ),
@@ -1510,7 +1789,11 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
       ),
       child: Text(
         text,
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -1527,7 +1810,10 @@ class _ReportViewerScreenState extends State<ReportViewerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+            Text(
+              label,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 10),
+            ),
             const SizedBox(height: 3),
             Text(
               value,
@@ -1593,7 +1879,9 @@ class _OverlayPainter extends CustomPainter {
         canvas.drawRect(rect, strokePaint);
 
         final rawConf = l['confidence'];
-        final confStr = rawConf is num ? '${(rawConf * 100).toStringAsFixed(0)}%' : '';
+        final confStr = rawConf is num
+            ? '${(rawConf * 100).toStringAsFixed(0)}%'
+            : '';
         final labelText =
             '${l['lesionType'] ?? "Finding"}${confStr.isNotEmpty ? " - $confStr" : ""}';
 
@@ -1606,10 +1894,18 @@ class _OverlayPainter extends CustomPainter {
             backgroundColor: LucidiaColors.error,
           ),
         );
-        final tp = TextPainter(text: textSpan, textDirection: TextDirection.ltr);
+        final tp = TextPainter(
+          text: textSpan,
+          textDirection: TextDirection.ltr,
+        );
         tp.layout(maxWidth: size.width - 20);
-        final labelY = (y1 - 16) < 4.0 ? (y2 + 4.0).clamp(4.0, size.height - 20) : (y1 - 16);
-        tp.paint(canvas, Offset(x1.clamp(4.0, size.width - tp.width - 4), labelY));
+        final labelY = (y1 - 16) < 4.0
+            ? (y2 + 4.0).clamp(4.0, size.height - 20)
+            : (y1 - 16);
+        tp.paint(
+          canvas,
+          Offset(x1.clamp(4.0, size.width - tp.width - 4), labelY),
+        );
       }
     }
   }
@@ -1618,4 +1914,3 @@ class _OverlayPainter extends CustomPainter {
   bool shouldRepaint(covariant _OverlayPainter old) =>
       old.lesions != lesions || old.imageAspectRatio != imageAspectRatio;
 }
-

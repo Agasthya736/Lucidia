@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'auth_service.dart';
+import 'consent_gate.dart';
+import '../navigation/main_shell_screen.dart';
+import '../shared/privacy_policy_link.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -33,11 +36,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account created. Please log in.')),
+      await _authService.login(
+        _emailController.text.trim(),
+        _passwordController.text,
       );
-      Navigator.of(context).pop();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(
+          builder: (_) => ConsentGate(
+            authenticatedContentBuilder: (context, onConsentRequired) =>
+                MainShellScreen(onConsentRequired: onConsentRequired),
+          ),
+        ),
+        (_) => false,
+      );
     } catch (e) {
       setState(() => _errorMessage = e.toString());
     } finally {
@@ -63,8 +75,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     labelText: 'Full name',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (value) =>
-                      (value == null || value.isEmpty) ? 'Enter your name' : null,
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? 'Enter your name'
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -75,7 +88,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Enter your email';
+                    if (value == null || value.isEmpty)
+                      return 'Enter your email';
                     if (!value.contains('@')) return 'Enter a valid email';
                     return null;
                   },
@@ -112,7 +126,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 12),
-                  Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                  Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
                 ],
                 const SizedBox(height: 24),
                 ElevatedButton(
@@ -127,6 +144,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Text('Create account'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => openPrivacyPolicy(context),
+                  child: const Text('Privacy policy'),
                 ),
               ],
             ),

@@ -6,6 +6,7 @@ import '../shared/google_mark.dart';
 import '../shared/lucidia_mark.dart';
 import '../shared/theme.dart';
 import '../navigation/main_shell_screen.dart';
+import 'consent_gate.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -39,7 +40,12 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MainShellScreen()),
+        MaterialPageRoute(
+          builder: (_) => ConsentGate(
+            authenticatedContentBuilder: (context, onConsentRequired) =>
+                MainShellScreen(onConsentRequired: onConsentRequired),
+          ),
+        ),
         (route) => false,
       );
     } catch (e) {
@@ -59,7 +65,12 @@ class _LoginScreenState extends State<LoginScreen> {
       await _authService.loginWithGoogle(useDevMock: useDevMock);
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MainShellScreen()),
+        MaterialPageRoute(
+          builder: (_) => ConsentGate(
+            authenticatedContentBuilder: (context, onConsentRequired) =>
+                MainShellScreen(onConsentRequired: onConsentRequired),
+          ),
+        ),
         (route) => false,
       );
     } catch (e) {

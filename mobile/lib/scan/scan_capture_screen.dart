@@ -4,16 +4,24 @@ import '../shared/theme.dart';
 import 'scan_service.dart';
 import 'pipeline_status_screen.dart';
 import '../auth/profile_screen.dart';
+import 'scan_submission_error_dialog.dart';
 
 class ScanCaptureScreen extends StatefulWidget {
-  const ScanCaptureScreen({super.key});
+  const ScanCaptureScreen({
+    super.key,
+    required this.onConsentRequired,
+    this.scanService,
+  });
+
+  final VoidCallback onConsentRequired;
+  final ScanService? scanService;
 
   @override
   State<ScanCaptureScreen> createState() => _ScanCaptureScreenState();
 }
 
 class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
-  final ScanService _scanService = ScanService();
+  late final ScanService _scanService = widget.scanService ?? ScanService();
   final List<PlatformFile> _selectedFiles = [];
   final TextEditingController _notesController = TextEditingController();
 
@@ -94,29 +102,25 @@ class _ScanCaptureScreenState extends State<ScanCaptureScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      if (e is ValidationException) {
-        showDialog(
+      if (e is ConsentRequiredException) {
+        widget.onConsentRequired();
+      } else {
+        final message = e is ScanSubmissionException
+            ? e.message
+            : e is ValidationException
+                ? e.message
+                : e.toString().replaceFirst('Exception: ', '');
+        await showDialog<void>(
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, color: LucidiaColors.warning),
-                SizedBox(width: 8),
-                Text('Image Rejected'),
-              ],
-            ),
-            content: Text(e.message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
-              ),
-            ],
+          builder: (_) => ScanSubmissionErrorDialog(
+            title: e is ValidationException ? 'Image rejected' : 'Submission failed',
+            message: message.isEmpty
+                ? 'The server could not process your request. Please try again.'
+                : message,
           ),
         );
+        if (mounted) setState(() => _error = message);
       }
-      final err = e.toString().replaceAll('Exception: ', '');
-      setState(() => _error = err);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'auth/auth_service.dart';
+import 'auth/consent_gate.dart';
 import 'auth/login_screen.dart';
 import 'navigation/main_shell_screen.dart';
 import 'theme/lucidia_theme.dart';
@@ -58,7 +59,12 @@ class _LucidiaAppState extends State<LucidiaApp> {
                     child: CircularProgressIndicator(color: AppColors.primary),
                   ),
                 )
-              : (_isLoggedIn ? const MainShellScreen() : const LoginScreen()),
+              : (_isLoggedIn
+                  ? ConsentGate(
+                      authenticatedContentBuilder: (context, onConsentRequired) =>
+                          MainShellScreen(onConsentRequired: onConsentRequired),
+                    )
+                  : const LoginScreen()),
           debugShowCheckedModeBanner: false,
         );
       },
