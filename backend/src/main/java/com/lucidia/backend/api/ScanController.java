@@ -88,7 +88,7 @@ public class ScanController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ScanSummary> submit(
+    public ResponseEntity<?> submit(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam(value = "images", required = false) List<MultipartFile> images,
             @RequestParam(value = "image", required = false) MultipartFile singleImage,
@@ -101,7 +101,10 @@ public class ScanController {
         // Consent gate: reject if user has not accepted the current consent version
         if (!consentService.hasConsented(userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .build();
+                    .body(Map.of(
+                            "code", "CONSENT_REQUIRED",
+                            "message", "Please accept the consent screen first"
+                    ));
         }
 
         List<MultipartFile> inputFiles = new ArrayList<>();

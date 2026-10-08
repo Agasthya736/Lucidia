@@ -195,7 +195,7 @@ class ScanSaveAndLoadTest {
                 fakeImageBytes
         );
 
-        ResponseEntity<ScanSummary> submitResponse = scanController.submit(
+        ResponseEntity<?> submitResponse = scanController.submit(
                 testJwt,
                 List.of(file),
                 null,
@@ -204,7 +204,7 @@ class ScanSaveAndLoadTest {
         );
 
         assertEquals(202, submitResponse.getStatusCode().value(), "POST /api/scans should return 202 ACCEPTED");
-        ScanSummary summary = submitResponse.getBody();
+        ScanSummary summary = (ScanSummary) submitResponse.getBody();
         assertNotNull(summary);
         UUID scanId = summary.id();
         assertNotNull(scanId);
