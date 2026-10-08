@@ -18,12 +18,14 @@ import static org.mockito.Mockito.*;
 class UserControllerTest {
 
     private UserRepository userRepository;
+    private AccountDeletionService accountDeletionService;
     private UserController userController;
 
     @BeforeEach
     void setUp() {
         userRepository = Mockito.mock(UserRepository.class);
-        userController = new UserController(userRepository);
+        accountDeletionService = Mockito.mock(AccountDeletionService.class);
+        userController = new UserController(userRepository, accountDeletionService);
     }
 
     @Test
@@ -95,5 +97,28 @@ class UserControllerTest {
     void testGetMeReturns401WhenJwtNull() {
         ResponseEntity<?> response = userController.getMe(null);
         assertEquals(401, response.getStatusCode().value());
+    }
+
+    @Test
+    void testDeleteMeCallsDeletionService() throws Exception {
+        UUID userId = UUID.randomUUID();
+        User user = new User("To Delete", "delete@lucidia.health", "hash");
+        Field idField = User.class.getDeclaredField("id");
+        idField.setAccessible(true);
+        idField.set(user, userId);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        Jwt jwt = new Jwt(
+                "token-value",
+                Instant.now(),
+                Instant.now().plusSeconds(3600),
+                Map.of("alg", "HS512"),
+                Map.of("sub", "delete@lucidia.health", "userId", userId.toString())
+        );
+
+        ResponseEntity<Void> response = userController.deleteMe(jwt);
+        assertEquals(204, response.getStatusCode().value());
+        verify(accountDeletionService).deleteAccount(userId);
     }
 }

@@ -47,6 +47,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**", "/api/test/**").permitAll()
                 .requestMatchers("/api/scans/**").hasRole("CLINICIAN")
+                .requestMatchers("/api/consent/**").hasRole("CLINICIAN")
+                .requestMatchers("/api/me/**").hasRole("CLINICIAN")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

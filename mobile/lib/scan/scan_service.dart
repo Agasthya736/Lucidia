@@ -214,4 +214,96 @@ class ScanService {
       throw Exception('Delete failed (${response.statusCode})');
     }
   }
+
+  /// Submit a "was this result helpful?" rating (1-5) with optional comment.
+  Future<void> submitFeedback(String scanId, int rating, {String? comment}) async {
+    final auth = await _authHeader();
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/scans/$scanId/feedback'),
+      headers: {
+        'Authorization': auth,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'rating': rating,
+        if (comment != null && comment.trim().isNotEmpty) 'comment': comment.trim(),
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Feedback submission failed (${response.statusCode})');
+    }
+  }
+
+  /// Check whether the current user has accepted the consent screen.
+  Future<Map<String, dynamic>> checkConsent() async {
+    final auth = await _authHeader();
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/consent'),
+      headers: {'Authorization': auth},
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Could not check consent status (${response.statusCode})');
+    }
+    return jsonDecode(response.body);
+  }
+
+  /// Record the user's consent decision (accepted = true/false).
+  Future<void> recordConsent(bool accepted) async {
+    final auth = await _authHeader();
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/consent'),
+      headers: {
+        'Authorization': auth,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'accepted': accepted}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Consent recording failed (${response.statusCode})');
+    }
+  }
+
+  /// Delete the current user's account and all their data.
+  Future<void> deleteAccount() async {
+    final auth = await _authHeader();
+    final response = await http.delete(
+      Uri.parse('$baseUrl/api/me'),
+      headers: {'Authorization': auth},
+    );
+    if (response.statusCode != 204) {
+      throw Exception('Account deletion failed (${response.statusCode})');
+    }
+  }
+
+  /// Update the user's data retention preference (null = keep until deleted).
+  Future<void> updateRetention(int? retentionDays) async {
+    final auth = await _authHeader();
+    final response = await http.put(
+      Uri.parse('$baseUrl/api/me/retention'),
+      headers: {
+        'Authorization': auth,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'retentionDays': retentionDays}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Retention update failed (${response.statusCode})');
+    }
+  }
+
+  /// Update the user's preferred language.
+  Future<void> updateLanguage(String languageCode) async {
+    final auth = await _authHeader();
+    final response = await http.put(
+      Uri.parse('$baseUrl/api/me/language'),
+      headers: {
+        'Authorization': auth,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'languageCode': languageCode}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Language update failed (${response.statusCode})');
+    }
+  }
 }

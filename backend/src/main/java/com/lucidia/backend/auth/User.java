@@ -26,6 +26,12 @@ public class User {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
+    /** Null means keep data until the user explicitly deletes their account. */
+    @Column(name = "retention_days")
+    private Integer retentionDays;
+
+    @Column(name = "language_code", length = 10)
+    private String languageCode = "en";
 
     @Column(name = "created_at")
     private Instant createdAt = Instant.now();
@@ -52,5 +58,9 @@ public class User {
     public String getPasswordHash() { return passwordHash; }
     public String getAuthProvider() { return authProvider; }
     public String getAvatarUrl() { return avatarUrl; }
+    public Integer getRetentionDays() { return retentionDays; }
+    public void setRetentionDays(Integer days) { this.retentionDays = days; }
+    public String getLanguageCode() { return languageCode != null ? languageCode : "en"; }
+    public void setLanguageCode(String code) { this.languageCode = code; }
     public Instant getCreatedAt() { return createdAt; }
 }

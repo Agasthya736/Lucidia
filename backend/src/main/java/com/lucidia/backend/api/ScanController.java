@@ -29,9 +29,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lucidia.backend.auth.User;
 import com.lucidia.backend.auth.UserRepository;
+import com.lucidia.backend.consent.ConsentService;
 import com.lucidia.backend.dto.ScanDtos.FinalizeRequest;
 import com.lucidia.backend.dto.ScanDtos.ScanDetail;
 import com.lucidia.backend.dto.ScanDtos.ScanSummary;
+import com.lucidia.backend.feedback.ScanFeedback;
+import com.lucidia.backend.feedback.ScanFeedbackRepository;
 import com.lucidia.backend.quota.QuotaExceededException;
 import com.lucidia.backend.quota.QuotaService;
 import com.lucidia.backend.quota.QuotaStatusDto;
@@ -52,6 +55,8 @@ public class ScanController {
     private final ImageStorageService imageStorageService;
     private final QuotaService quotaService;
     private final com.lucidia.backend.synthesis.ReportSynthesisService reportSynthesisService;
+    private final ConsentService consentService;
+    private final ScanFeedbackRepository feedbackRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ScanController(
@@ -60,13 +65,17 @@ public class ScanController {
             ReportPdfService reportPdfService,
             ImageStorageService imageStorageService,
             QuotaService quotaService,
-            com.lucidia.backend.synthesis.ReportSynthesisService reportSynthesisService) {
+            com.lucidia.backend.synthesis.ReportSynthesisService reportSynthesisService,
+            ConsentService consentService,
+            ScanFeedbackRepository feedbackRepository) {
         this.scanService = scanService;
         this.userRepository = userRepository;
         this.reportPdfService = reportPdfService;
         this.imageStorageService = imageStorageService;
         this.quotaService = quotaService;
         this.reportSynthesisService = reportSynthesisService;
+        this.consentService = consentService;
+        this.feedbackRepository = feedbackRepository;
     }
 
     private UUID currentUserId(Jwt jwt) {
@@ -88,6 +97,12 @@ public class ScanController {
             throws IOException {
 
         UUID userId = currentUserId(jwt);
+
+        // Consent gate: reject if user has not accepted the current consent version
+        if (!consentService.hasConsented(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .build();
+        }
 
         List<MultipartFile> inputFiles = new ArrayList<>();
         if (images != null && !images.isEmpty()) {
@@ -232,6 +247,37 @@ public class ScanController {
         UUID userId = currentUserId(jwt);
         scanService.delete(id, userId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * POST /api/scans/{id}/feedback
+     * User submits a "was this result helpful?" rating with optional comment.
+     */
+    @PostMapping("/{id}/feedback")
+    public ResponseEntity<?> submitFeedback(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> body) {
+
+        UUID userId = currentUserId(jwt);
+        // Verify the scan belongs to the user
+        scanService.get(id, userId);
+
+        int ratingInt = body.containsKey("rating") ? ((Number) body.get("rating")).intValue() : 0;
+        if (ratingInt < 1 || ratingInt > 5) {
+            return ResponseEntity.badRequest().body(Map.of("error", "rating must be 1-5"));
+        }
+        String comment = body.containsKey("comment") ? String.valueOf(body.get("comment")) : null;
+
+        ScanFeedback fb = feedbackRepository.save(
+                new ScanFeedback(id, userId, (short) ratingInt, comment));
+
+        return ResponseEntity.ok(Map.of(
+                "id",        fb.getId().toString(),
+                "scanId",    fb.getScanId().toString(),
+                "rating",    fb.getRating(),
+                "createdAt", fb.getCreatedAt().toString()
+        ));
     }
 
     @ExceptionHandler(QuotaExceededException.class)

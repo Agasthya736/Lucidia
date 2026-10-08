@@ -55,3 +55,7 @@ lucidia:
     base-url: http://localhost:8001
   google:
     client-id: ${GOOGLE_CLIENT_ID:747503445476-3l387af9b2ttbeo8n0g80630dd5fo853.apps.googleusercontent.com}
+  # Update this URL before release. Points to your hosted Privacy Policy page.
+  privacy-policy-url: ${PRIVACY_POLICY_URL:https://lucidia.health/privacy}
+  consent:
+    current-version: "1.0"

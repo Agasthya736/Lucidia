@@ -119,6 +119,35 @@ public class ImageStorageService {
         }
     }
 
+    /**
+     * Deletes all stored slices for the given scan. Called during account deletion
+     * and by the retention scheduler.
+     */
+    public void deleteAllSlicesForScan(UUID scanId, int sliceCount) {
+        if (isGcsMode()) {
+            for (int i = 0; i < sliceCount; i++) {
+                try {
+                    gcsStorage.delete(BlobId.of(gcsBucket, gcsSlicePath(scanId, i)));
+                } catch (Exception e) {
+                    log.warn("GCS delete failed for scan {} slice {}: {}", scanId, i, e.getMessage());
+                }
+            }
+            // Also attempt legacy path cleanup
+            try {
+                gcsStorage.delete(BlobId.of(gcsBucket, gcsLegacyPath(scanId)));
+            } catch (Exception ignored) {}
+        } else {
+            for (int i = 0; i < sliceCount; i++) {
+                try {
+                    Files.deleteIfExists(localSlicePath(scanId, i));
+                } catch (IOException e) {
+                    log.warn("Local delete failed for scan {} slice {}: {}", scanId, i, e.getMessage());
+                }
+            }
+            try { Files.deleteIfExists(localLegacyPath(scanId)); } catch (IOException ignored) {}
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────

@@ -5,8 +5,10 @@ import com.lucidia.backend.api.ScanController;
 import com.lucidia.backend.audit.AuditLogService;
 import com.lucidia.backend.auth.User;
 import com.lucidia.backend.auth.UserRepository;
+import com.lucidia.backend.consent.ConsentService;
 import com.lucidia.backend.dto.ScanDtos.ScanDetail;
 import com.lucidia.backend.dto.ScanDtos.ScanSummary;
+import com.lucidia.backend.feedback.ScanFeedbackRepository;
 import com.lucidia.backend.orchestrator.PipelineOrchestrator;
 import com.lucidia.backend.orchestrator.PipelineResult;
 import com.lucidia.backend.quota.QuotaService;
@@ -47,6 +49,8 @@ class ScanSaveAndLoadTest {
     private ReportSynthesisService reportSynthesisService;
     private ReportPdfService reportPdfService;
     private com.lucidia.backend.responsibleai.ResponsibleAiGuardrailService responsibleAiService;
+    private ConsentService consentService;
+    private ScanFeedbackRepository feedbackRepository;
 
     private AsyncPipelineExecutor asyncPipelineExecutor;
     private ScanService scanService;
@@ -144,6 +148,9 @@ class ScanSaveAndLoadTest {
         reportPdfService = mock(ReportPdfService.class);
 
         responsibleAiService = mock(com.lucidia.backend.responsibleai.ResponsibleAiGuardrailService.class);
+        consentService = mock(ConsentService.class);
+        when(consentService.hasConsented(any(UUID.class))).thenReturn(true); // user has consented
+        feedbackRepository = mock(ScanFeedbackRepository.class);
 
         asyncPipelineExecutor = new AsyncPipelineExecutor(scanRepository, pipelineOrchestrator);
         scanService = new ScanService(
@@ -162,7 +169,9 @@ class ScanSaveAndLoadTest {
                 reportPdfService,
                 imageStorageService,
                 quotaService,
-                reportSynthesisService
+                reportSynthesisService,
+                consentService,
+                feedbackRepository
         );
 
         testJwt = new Jwt(
@@ -250,7 +259,9 @@ class ScanSaveAndLoadTest {
                 reportPdfService,
                 imageStorageService,
                 quotaService,
-                reportSynthesisService
+                reportSynthesisService,
+                consentService,
+                feedbackRepository
         );
 
         List<ScanSummary> reloadedList = newScanController.list(testJwt);
