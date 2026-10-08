@@ -89,7 +89,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: LucidiaColors.surfaceElevated,
-        title: Text('Educational Use Disclaimer', style: TextStyle(color: LucidiaColors.textPrimary)),
+        title: Text(
+          'Educational Use Disclaimer',
+          style: TextStyle(color: LucidiaColors.textPrimary),
+        ),
         content: SingleChildScrollView(
           child: Text(
             'Important Notice:\n\n'
@@ -99,7 +102,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             '• Always consult a qualified healthcare professional for any medical concerns '
             'or before making any health-related decisions.\n\n'
             '• Do not rely on Lucidia results for clinical decision-making.',
-            style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 13, height: 1.4),
+            style: TextStyle(
+              color: LucidiaColors.textSecondary,
+              fontSize: 13,
+              height: 1.4,
+            ),
           ),
         ),
         actions: [
@@ -178,10 +185,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Icon(Icons.logout),
-                label: const Text('Log Out', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                label: const Text(
+                  'Log Out',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),
@@ -199,11 +212,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircularProgressIndicator(strokeWidth: 2, color: LucidiaColors.teal),
+              const CircularProgressIndicator(
+                strokeWidth: 2,
+                color: LucidiaColors.teal,
+              ),
               const SizedBox(height: 12),
               Text(
                 'Loading profile...',
-                style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 13),
+                style: TextStyle(
+                  color: LucidiaColors.textSecondary,
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
@@ -217,16 +236,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
         decoration: lucidiaCardDecoration(),
         child: Column(
           children: [
-            const Icon(Icons.error_outline, color: LucidiaColors.error, size: 36),
+            const Icon(
+              Icons.error_outline,
+              color: LucidiaColors.error,
+              size: 36,
+            ),
             const SizedBox(height: 10),
             Text(
               'Failed to load profile',
-              style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: LucidiaColors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 6),
             Text(
               _profileError!,
-              style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
+              style: TextStyle(
+                color: LucidiaColors.textSecondary,
+                fontSize: 12,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 14),
@@ -272,7 +302,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 4),
                   Text(
                     email,
-                    style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 13),
+                    style: TextStyle(
+                      color: LucidiaColors.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
                 if (_loadingProfile) ...[
@@ -280,7 +313,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(
                     width: 12,
                     height: 12,
-                    child: CircularProgressIndicator(strokeWidth: 1.5, color: LucidiaColors.teal),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: LucidiaColors.teal,
+                    ),
                   ),
                 ],
               ],
@@ -288,7 +324,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           if (_profileError != null)
             IconButton(
-              icon: const Icon(Icons.refresh, color: LucidiaColors.warning, size: 20),
+              icon: const Icon(
+                Icons.refresh,
+                color: LucidiaColors.warning,
+                size: 20,
+              ),
               tooltip: 'Retry loading profile',
               onPressed: _loadProfile,
             ),
@@ -307,7 +347,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: avatarUrl.isEmpty
             ? Text(
                 name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: LucidiaColors.teal, fontSize: 18),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: LucidiaColors.teal,
+                  fontSize: 18,
+                ),
               )
             : null,
       );
@@ -320,7 +364,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: LucidiaColors.teal.withValues(alpha: 0.15),
         shape: BoxShape.circle,
-        border: Border.all(color: LucidiaColors.teal.withValues(alpha: 0.4), width: 1.5),
+        border: Border.all(
+          color: LucidiaColors.teal.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
       ),
       child: Center(
         child: Text(
@@ -349,7 +396,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Row(
                 children: [
                   Icon(
-                    isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                    isDark
+                        ? Icons.dark_mode_outlined
+                        : Icons.light_mode_outlined,
                     color: LucidiaColors.teal,
                   ),
                   const SizedBox(width: 14),
@@ -366,8 +415,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        isDark ? 'Easier on the eyes in low light' : 'Crisp daytime display',
-                        style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 11),
+                        isDark
+                            ? 'Easier on the eyes in low light'
+                            : 'Crisp daytime display',
+                        style: TextStyle(
+                          color: LucidiaColors.textSecondary,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
@@ -402,7 +456,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Text(
             'Monthly Scan Quota',
-            style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: LucidiaColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 12),
           ClipRRect(
@@ -410,7 +468,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: LinearProgressIndicator(
               value: total > 0 ? (used / total).clamp(0.0, 1.0) : 0.0,
               backgroundColor: LucidiaColors.surface,
-              color: remaining <= 3 ? LucidiaColors.warning : LucidiaColors.teal,
+              color: remaining <= 3
+                  ? LucidiaColors.warning
+                  : LucidiaColors.teal,
               minHeight: 8,
             ),
           ),
@@ -420,12 +480,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Text(
                 '$used of $total scans used this month',
-                style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
+                style: TextStyle(
+                  color: LucidiaColors.textSecondary,
+                  fontSize: 12,
+                ),
               ),
               Text(
                 '$remaining remaining',
                 style: TextStyle(
-                  color: remaining <= 3 ? LucidiaColors.warning : LucidiaColors.textPrimary,
+                  color: remaining <= 3
+                      ? LucidiaColors.warning
+                      : LucidiaColors.textPrimary,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
@@ -446,16 +511,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Text(
             'AI Pipeline',
-            style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: LucidiaColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 14),
-          _infoRow(Icons.biotech_outlined, 'Triage Detector', 'Image Pixel Analyzer v1.0'),
+          _infoRow(
+            Icons.biotech_outlined,
+            'Triage Detector',
+            'Image Pixel Analyzer v1.0',
+          ),
           const SizedBox(height: 10),
-          _infoRow(Icons.account_tree_outlined, 'Cost Optimization', 'Clean Bypass Activated'),
+          _infoRow(
+            Icons.account_tree_outlined,
+            'Cost Optimization',
+            'Clean Bypass Activated',
+          ),
           const SizedBox(height: 10),
-          _infoRow(Icons.auto_awesome, 'Report Synthesis', 'Grounded AI Provider'),
+          _infoRow(
+            Icons.auto_awesome,
+            'Report Synthesis',
+            'Grounded AI Provider',
+          ),
           const SizedBox(height: 10),
-          _infoRow(Icons.verified_outlined, 'Verifier Engine', 'Grounding Check Active'),
+          _infoRow(
+            Icons.verified_outlined,
+            'Verifier Engine',
+            'Grounding Check Active',
+          ),
         ],
       ),
     );
@@ -470,16 +555,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Text(
             'Legal & Disclaimers',
-            style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: LucidiaColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 12),
           Material(
             color: Colors.transparent,
             child: ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.privacy_tip_outlined, color: LucidiaColors.teal),
-              title: Text('Privacy Policy & Data Handling', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
-              trailing: Icon(Icons.chevron_right, color: LucidiaColors.textSecondary),
+              leading: const Icon(
+                Icons.privacy_tip_outlined,
+                color: LucidiaColors.teal,
+              ),
+              title: Text(
+                'Privacy Policy & Data Handling',
+                style: TextStyle(
+                  color: LucidiaColors.textPrimary,
+                  fontSize: 13,
+                ),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: LucidiaColors.textSecondary,
+              ),
               onTap: () => openPrivacyPolicy(context),
             ),
           ),
@@ -488,9 +589,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: Colors.transparent,
             child: ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.info_outline, color: LucidiaColors.teal),
-              title: Text('Educational Use Disclaimer', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
-              trailing: Icon(Icons.chevron_right, color: LucidiaColors.textSecondary),
+              leading: const Icon(
+                Icons.info_outline,
+                color: LucidiaColors.teal,
+              ),
+              title: Text(
+                'Educational Use Disclaimer',
+                style: TextStyle(
+                  color: LucidiaColors.textPrimary,
+                  fontSize: 13,
+                ),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: LucidiaColors.textSecondary,
+              ),
               onTap: _showDisclaimerNotice,
             ),
           ),
@@ -499,11 +612,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: Colors.transparent,
             child: ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.info_outline, color: LucidiaColors.teal),
-              title: Text('About this tool', style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 13)),
-              trailing: Icon(Icons.chevron_right, color: LucidiaColors.textSecondary),
+              leading: const Icon(
+                Icons.info_outline,
+                color: LucidiaColors.teal,
+              ),
+              title: Text(
+                'About this tool',
+                style: TextStyle(
+                  color: LucidiaColors.textPrimary,
+                  fontSize: 13,
+                ),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: LucidiaColors.textSecondary,
+              ),
               onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const AboutToolScreen()),
+                MaterialPageRoute<void>(
+                  builder: (_) => const AboutToolScreen(),
+                ),
               ),
             ),
           ),
@@ -534,17 +661,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<int?>(
-            initialValue: retentionDays,
+          DropdownButtonFormField<int>(
+            initialValue: retentionDays ?? 0,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
               labelText: 'Keep data',
             ),
             items: const [
-              DropdownMenuItem<int?>(value: 30, child: Text('30 days')),
-              DropdownMenuItem<int?>(value: null, child: Text('Keep until deleted')),
+              DropdownMenuItem<int>(value: 30, child: Text('30 days')),
+              DropdownMenuItem<int>(
+                value: 0,
+                child: Text('Keep until deleted'),
+              ),
             ],
-            onChanged: (days) => _saveRetention(days),
+            onChanged: (days) => _saveRetention(days == 0 ? null : days),
           ),
         ],
       ),
@@ -616,9 +746,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Icon(icon, size: 16, color: LucidiaColors.teal),
         const SizedBox(width: 10),
-        Text(label, style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12)),
+        Text(
+          label,
+          style: TextStyle(color: LucidiaColors.textSecondary, fontSize: 12),
+        ),
         const Spacer(),
-        Text(value, style: TextStyle(color: LucidiaColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500)),
+        Text(
+          value,
+          style: TextStyle(
+            color: LucidiaColors.textPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ],
     );
   }
