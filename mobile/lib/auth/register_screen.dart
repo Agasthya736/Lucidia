@@ -51,9 +51,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         (_) => false,
       );
     } catch (e) {
-      setState(() => _errorMessage = e.toString());
+      if (mounted) {
+        setState(() => _errorMessage = e.toString());
+      }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -88,9 +92,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty)
+                    if (value == null || value.isEmpty) {
                       return 'Enter your email';
-                    if (!value.contains('@')) return 'Enter a valid email';
+                    }
+                    if (!value.contains('@')) {
+                      return 'Enter a valid email';
+                    }
                     return null;
                   },
                 ),
