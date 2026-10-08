@@ -19,14 +19,15 @@ import java.util.UUID;
  * Handles the "Delete my account and data" flow required for GDPR/privacy
  * compliance and Play Store policy.
  *
- * <p>Deletes in a single transaction:
+ * <p>
+ * Deletes in a single transaction:
  * <ol>
- *   <li>GCS/local image files for every scan</li>
- *   <li>scan_feedback rows</li>
- *   <li>user_consents rows</li>
- *   <li>scans rows</li>
- *   <li>audit_log personal identifiers (anonymised, not deleted)</li>
- *   <li>the user row itself</li>
+ * <li>GCS/local image files for every scan</li>
+ * <li>scan_feedback rows</li>
+ * <li>user_consents rows</li>
+ * <li>scans rows</li>
+ * <li>audit_log personal identifiers (anonymised, not deleted)</li>
+ * <li>the user row itself</li>
  * </ol>
  */
 @Service
@@ -85,7 +86,7 @@ public class AccountDeletionService {
         scanRepository.deleteAll(scans);
 
         // 5. Anonymise audit log (retain rows, remove PII)
-        auditLogRepository.anonymiseForUser(userId);
+        auditLogRepository.anonymiseForUser(userId, com.lucidia.backend.audit.AuditLogService.ANONYMOUS_USER_ID);
 
         // 6. Delete the user row
         userRepository.deleteById(userId);

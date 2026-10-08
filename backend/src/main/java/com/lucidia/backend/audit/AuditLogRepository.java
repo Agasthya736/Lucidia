@@ -8,8 +8,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.repository.query.Param;
+
 public interface AuditLogRepository extends JpaRepository<AuditLogEntry, UUID> {
     List<AuditLogEntry> findByResourceIdOrderByTimestampAsc(UUID resourceId);
+
     List<AuditLogEntry> findTopByOrderByTimestampDesc();
 
     /**
@@ -19,6 +22,6 @@ public interface AuditLogRepository extends JpaRepository<AuditLogEntry, UUID> {
      */
     @Modifying
     @Transactional
-    @Query("UPDATE AuditLogEntry e SET e.actorUserId = '00000000-0000-0000-0000-000000000000' WHERE e.actorUserId = :userId")
-    void anonymiseForUser(UUID userId);
+    @Query("UPDATE AuditLogEntry e SET e.actorUserId = :anonId WHERE e.actorUserId = :userId")
+    void anonymiseForUser(@Param("userId") UUID userId, @Param("anonId") UUID anonId);
 }
