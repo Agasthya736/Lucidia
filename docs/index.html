@@ -30,13 +30,13 @@
 <p class="notice"><strong>Medical disclaimer.</strong> Lucidia is a research and decision-support tool. Its output is not a medical diagnosis and is not a substitute for review by a qualified radiologist or physician. Do not delay or change medical care based on the app's output.</p>
 
 <h2>Who we are</h2>
-<p>The app is developed by [Developer / account holder name], [City, Country]. Contact: <a href="mailto:lucidia4582@gmail.com">lucidia4582@gmail.com</a>.</p>
+<p>The app is developed by Agasthya, Madurai, India. Contact: <a href="mailto:lucidia4582@gmail.com">lucidia4582@gmail.com</a>.</p>
 
 <h2>Information we collect</h2>
 <ul>
   <li><strong>CT scan images</strong> that you choose to upload for analysis.</li>
   <li><strong>Generated reports</strong>: the AI-produced findings, differential diagnosis text, and PDF report created from your scan.</li>
-  <li><strong>Account information</strong> [if the app has login: email address and name or username, and a securely hashed password]. [Delete this item if there is no login.]</li>
+  <li><strong>Account information</strong> email address, name or username, and a securely hashed password.</li>
   <li><strong>Technical and audit data</strong>: request timestamps and an integrity log (hash-chained records) that records which processing steps ran on each report.</li>
 </ul>
 <p>We do not collect your location, contacts, or advertising identifiers, and the app contains no ads.</p>
@@ -52,7 +52,14 @@
 <h2>Who processes it</h2>
 <ul>
   <li><strong>Google Cloud</strong>: our backend runs on Google Cloud Run and stores data in Google Cloud SQL (region: Mumbai, India).</li>
-  <li><strong>Google Gemini API</strong>: uploaded images and related text are sent to Google's Gemini API so that an AI model can analyse them. [Verify and keep consistent with your actual setup, and with your API plan's data-use terms.]</li>
+</ul>
+<h2>Third-Party AI Processing (Google Gemini API)</h2>
+<p>To provide automated visual and clinical analysis, images you submit through Lucidia are transmitted securely to Google LLC&rsquo;s Gemini API.</p>
+<p>Because Lucidia uses Google&rsquo;s paid commercial API tier:</p>
+<ul>
+  <li>Your submitted images, prompts, and analysis results are not used by Google to train or improve its AI models.</li>
+  <li>Data transmitted to Google is encrypted in transit using industry-standard TLS/HTTPS protocols.</li>
+  <li>Data is processed to generate the requested analysis report. Under Google&rsquo;s paid-tier terms, Google may keep prompts and responses for a limited period solely to detect abuse and to meet legal obligations.</li>
 </ul>
 <p>We do not share your data with other third parties except where required by law.</p>
 
@@ -60,7 +67,7 @@
 <p>Data is encrypted in transit using HTTPS. Stored data is held in managed cloud databases with access restricted to the service. No system is perfectly secure, so please avoid uploading images that contain your name or other identifying details burned into the pixels.</p>
 
 <h2>Retention and deletion</h2>
-<p>We keep your uploaded scans and reports until you delete them or ask us to. To request deletion of your data [or account], email <a href="mailto:lucidia4582@gmail.com">lucidia4582@gmail.com</a> from the address linked to your account [or use the in-app delete option, if you add one]. We will act on requests within [30] days. Backups may take a short additional time to clear.</p>
+<p>We keep your uploaded scans and reports until you delete them or ask us to. To request deletion of your data or account, use the in-app delete option or email <a href="mailto:lucidia4582@gmail.com">lucidia4582@gmail.com</a> from the address linked to your account. We will act on requests within 30 days. Backups may take a short additional time to clear.</p>
 
 <h2>Your choices and rights</h2>
 <p>You can choose not to upload any image. You can ask us to access, correct, export, or delete the data we hold about you. Depending on where you live, you may have additional rights under local law, including India's Digital Personal Data Protection Act, 2023.</p>
